@@ -7,10 +7,10 @@
 
 ## 30 秒上手
 
-### 从 GitHub 克隆后（首次）
+### 安装
 
 ```bash
-git clone https://github.com/<你的用户名>/fullstack-learning-system.git
+git clone https://github.com/PointsPPI/fullstack-learning-system.git
 cd fullstack-learning-system
 node tools/setup.mjs
 ```
@@ -167,9 +167,7 @@ root 无密码（`-uroot`）。这是**本地学习实例**，不要用于任何
 
 ## 怎么新增学习内容
 
-**最简单**：告诉我"我想学 XXX"，我按 `CONTENT-SPEC.md` 产出内容包，你刷新即见。
 
-**自己做**：
 1. 在 `learning-system/content/packs/` 建新目录（id 小写连字符）
 2. 写 `pack.json` + `lessons/*.md` + `quiz/*.json`
 3. `node tools/build-content.mjs`
