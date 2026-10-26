@@ -142,15 +142,18 @@ switch (cmd) {
 
   /* ----- 网址清单 ----- */
   case 'urls': {
-    const pad = (k) => ' '.repeat(Math.max(0, 10 - T(k).length));
+    // 中文占 2 个显示宽度，所以不能按 .length 算
+    const dispWidth = (str) => [...str].reduce((w, ch) => w + (/[一-鿿＀-￯]/.test(ch) ? 2 : 1), 0);
+    const pad = (k) => ' '.repeat(Math.max(0, 10 - dispWidth(T(k))));
     line('');
     line(`${C.blue}${'='.repeat(60)}${C.reset}`);
     line(`${C.bold}  ${T('urls.title')}${C.reset}`);
     line(`${C.blue}${'='.repeat(60)}${C.reset}`);
     line('');
     line(`  ${C.cyan}${T('urls.study')}${C.reset}${pad('urls.study')}http://127.0.0.1:5173/learning-system/`);
+    line(`  ${C.cyan}${T('urls.practice')}${C.reset}${pad('urls.practice')}http://127.0.0.1:5173/learning-system/#/practice`);
+    line(`  ${C.cyan}${T('urls.judge')}${C.reset}${pad('urls.judge')}http://127.0.0.1:5173/learning-system/#/practice/binary-search`);
     line(`  ${C.cyan}${T('urls.journey')}${C.reset}${pad('urls.journey')}http://127.0.0.1:5173/labs/web/01-request-journey.html`);
-    line(`  ${C.cyan}${T('urls.crud')}${C.reset}${pad('urls.crud')}http://127.0.0.1:5173/labs/web/02-book-crud.html`);
     line(`  ${C.cyan}${T('urls.api')}${C.reset}${pad('urls.api')}http://127.0.0.1:8080/api/books`);
     line('');
     line(`  ${C.dim}${T('urls.log')}${C.reset}`);

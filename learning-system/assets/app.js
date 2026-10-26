@@ -112,6 +112,8 @@
     // 顶部导航
     const nav = [
       { icon: '🏠', label: '学习总览', path: '/', badge: '' },
+      { icon: '🧪', label: '练习场 · 运行代码', path: '/practice' },
+      { icon: '📝', label: '编程挑战 · 判题', path: '/practice/' },
       { icon: '🔁', label: '今日复习', path: '/review', badge: stats.due ? String(stats.due) : '' },
       { icon: '🎯', label: '学习计划', path: '/plan' },
       { icon: '📊', label: '学习记录', path: '/stats' },
@@ -1297,6 +1299,56 @@
     );
     page.appendChild(setCard);
 
+    // 评测服务地址（练习场与判题要用）
+    const apiBaseVal = localStorage.getItem('ls.apiBase') || 'http://127.0.0.1:8080';
+    const apiInput = el('input', {
+      class: 'input', type: 'text', value: apiBaseVal,
+      placeholder: 'http://127.0.0.1:8080',
+      style: 'font-family:var(--f-mono);font-size:13px',
+    });
+
+    const apiMsg = el('span', { class: 'small', style: 'margin-left:8px' });
+
+    const apiCard = el('div', { class: 'card mt-4' },
+      el('h3', { style: 'font-size:15px;margin-bottom:6px' }, '🔌 评测服务地址'),
+      el('p', { class: 'small muted', style: 'margin-bottom:12px' },
+        '练习场运行代码、编程题判分都依赖后端。默认 8080 端口。' +
+        '若你改过 server.port，在这里同步修改。'),
+      el('div', { class: 'row' },
+        apiInput,
+        el('button', {
+          class: 'btn', type: 'button',
+          onclick: async () => {
+            const v = apiInput.value.trim().replace(/\/$/, '');
+            if (!/^https?:\/\//.test(v)) {
+              apiMsg.textContent = '✗ 需要以 http:// 开头';
+              apiMsg.style.color = 'var(--c-danger)';
+              return;
+            }
+            localStorage.setItem('ls.apiBase', v);
+            apiMsg.textContent = '已保存，正在测试连接…';
+            apiMsg.style.color = 'var(--c-text-3)';
+            try {
+              const r = await fetch(v + '/api/code/problems', { signal: AbortSignal.timeout(6000) });
+              const j = await r.json();
+              if (j.code === 0) {
+                apiMsg.textContent = '✓ 连接成功，共 ' + j.data.length + ' 道题';
+                apiMsg.style.color = 'var(--c-ok)';
+              } else {
+                apiMsg.textContent = '✗ 服务返回异常：' + j.message;
+                apiMsg.style.color = 'var(--c-danger)';
+              }
+            } catch (e) {
+              apiMsg.textContent = '✗ 连接失败：' + (e.name === 'TimeoutError' ? '超时' : '无法访问');
+              apiMsg.style.color = 'var(--c-danger)';
+            }
+          },
+        }, '保存并测试')
+      ),
+      apiMsg
+    );
+    page.appendChild(apiCard);
+
     // 键盘快捷键说明
     page.appendChild(el('div', { class: 'card mt-4' },
       el('h3', { style: 'font-size:15px;margin-bottom:12px' }, '⌨️ 快捷键'),
@@ -1488,6 +1540,8 @@
   route('/stats', () => viewStats());
   route('/manage', () => viewManage());
   route('/search', (p, q) => viewSearch(q.q || ''));
+  route('/practice', () => window.LS.practice.viewPlayground(navigate));
+  route('/practice/:problemId', (p) => window.LS.practice.viewProblem(p.problemId, navigate));
 
   /* ============================================================
    * 渲染入口

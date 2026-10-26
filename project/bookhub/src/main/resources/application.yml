@@ -13,6 +13,39 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 20000
+  # ---------- Redis：缓存 + 分布式锁 + 限流 + 幂等 ----------
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6380}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16     # 最大连接数
+          max-idle: 8
+          min-idle: 2
+          max-wait: 1000ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000   # 默认缓存 5 分钟（毫秒）
+      cache-null-values: false   # 不缓存 null，避免"缓存穿透"被 null 占满
+      key-prefix: "bookhub:cache:"
+      use-key-prefix: true
+
+# ---------- 代码沙箱 ----------
+sandbox:
+  # JDK 路径：必须指向有 javac 的 JDK（不是 JRE）
+  # 用引号包裹，避免 YAML 把反斜杠当转义符
+  jdk-home: "${JDK_HOME:D:/Java 21}"
+  compile-timeout-ms: 15000
+  run-timeout-ms: 8000
+  max-output: 20000
+  max-code-length: 50000
+  max-heap-mb: 256
+
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai

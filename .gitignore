@@ -19,6 +19,9 @@ labs/jdbc/out/
 tools/maven/maven-3.9.9/
 tools/maven/repo/
 
+# Redis 二进制（约 12MB，由 setup.mjs 自动下载）
+tools/redis/
+
 # 内容构建产物（由 node tools/build-content.mjs 生成）
 # 说明：虽然是页面运行必需，但它是源码的派生物，
 #      提交会让 diff 噪音极大。首次使用请先跑构建脚本。

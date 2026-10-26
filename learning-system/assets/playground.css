@@ -1,0 +1,450 @@
+/* ============================================================
+ * playground.css —— 在线代码编辑器与判题界面样式
+ * ------------------------------------------------------------
+ * 设计要点：
+ *   ① 编辑器与输出区用 Grid 分栏（宽屏左右，窄屏上下）
+ *   ② 行号与代码严格对齐（同一 line-height、同一字体）
+ *   ③ 判题结果用「用例卡片」呈现，而不是一段文本 ——
+ *      学习者需要一眼看出"哪一个用例挂了、期望什么、实际什么"
+ *   ④ 状态色语义化：绿=通过 红=失败 黄=超时
+ * ============================================================ */
+
+/* ---------- 整体布局 ---------- */
+.pg {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .pg { grid-template-columns: 1fr; }
+}
+
+/* ---------- 编辑器容器 ---------- */
+.pg-editor {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* 高度锁死，避免代码变长时整个页面跳动 */
+  height: min(58vh, 520px);
+}
+
+.pg-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-surface-3);
+  border-bottom: 1px solid var(--c-border);
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.pg-bar .pg-title {
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  color: var(--c-text-2);
+  margin-right: auto;
+}
+
+/* 语言徽标 */
+.pg-lang {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--c-brand-strong);
+  background: var(--c-brand-weak);
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+}
+
+/* ---------- 代码输入区（行号 + textarea 叠加） ---------- */
+.pg-code-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+  background: var(--c-code-bg);
+  overflow: hidden;
+}
+
+.pg-gutter {
+  flex: 0 0 auto;
+  width: 46px;
+  padding: var(--sp-3) var(--sp-2) var(--sp-3) 0;
+  text-align: right;
+  font-family: var(--f-mono);
+  font-size: calc(13px * var(--font-scale));
+  line-height: 1.65;
+  color: var(--c-text-3);
+  background: var(--c-surface-3);
+  border-right: 1px solid var(--c-border);
+  user-select: none;
+  overflow: hidden;
+  /* 与 textarea 同步滚动由 JS 处理 */
+}
+
+.pg-gutter > div {
+  white-space: pre;
+}
+
+/* 当前行高亮 */
+.pg-gutter > div.on {
+  color: var(--c-brand);
+  font-weight: 700;
+}
+
+.pg-code {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  padding: var(--sp-3);
+  background: transparent;
+  color: var(--c-text);
+  font-family: var(--f-mono);
+  font-size: calc(13px * var(--font-scale));
+  line-height: 1.65;
+  tab-size: 4;
+  white-space: pre;
+  overflow: auto;
+  /* 关闭拼写检查的红波浪线 */
+  spellcheck: false;
+}
+
+.pg-code::selection {
+  background: color-mix(in srgb, var(--c-brand) 30%, transparent);
+}
+
+/* ---------- 操作栏 ---------- */
+.pg-actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-top: 1px solid var(--c-border);
+  background: var(--c-surface);
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.pg-actions .spacer { flex: 1; }
+/* 提示文字不换行，避免把按钮挤变形 */
+.pg-hint-key { white-space: nowrap; }
+
+.pg-hint-key {
+  font-size: 11px;
+  color: var(--c-text-3);
+  font-family: var(--f-mono);
+  align-self: center;
+}
+
+/* ---------- 输出面板 ---------- */
+.pg-out {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.pg-panel {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.pg-panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-surface-3);
+  border-bottom: 1px solid var(--c-border);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  color: var(--c-text-2);
+}
+
+/* 结论徽标 */
+.pg-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border-radius: var(--r-full);
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: auto;
+}
+.pg-status.pass    { background: var(--c-ok-weak);    color: var(--c-ok); }
+.pg-status.fail    { background: var(--c-danger-weak); color: var(--c-danger); }
+.pg-status.warn    { background: var(--c-warn-weak);   color: var(--c-warn); }
+.pg-status.idle    { background: var(--c-surface-3);   color: var(--c-text-3); }
+
+/* 终端风格输出 */
+.pg-term {
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  padding: var(--sp-3);
+  background: var(--c-code-bg);
+  color: var(--c-text);
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  tab-size: 4;
+  min-height: 90px;
+}
+.pg-term:empty::before {
+  content: '（运行结果会显示在这里）';
+  color: var(--c-text-3);
+  font-style: italic;
+}
+.pg-term .err { color: var(--c-danger); }
+.pg-term .ok  { color: var(--c-ok); }
+.pg-term .dim { color: var(--c-text-3); }
+
+/* 编译错误块：用更醒目的左侧红边 */
+.pg-compile {
+  border-left: 3px solid var(--c-danger);
+  background: var(--c-danger-weak);
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  padding: var(--sp-3);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  color: var(--c-text);
+}
+
+/* ---------- 判题结果 ---------- */
+.pg-score {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.pg-ring {
+  --p: 0;
+  width: 76px; height: 76px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: conic-gradient(var(--c-brand) calc(var(--p) * 1%), var(--c-surface-3) 0);
+  position: relative;
+  flex: 0 0 auto;
+}
+.pg-ring::before {
+  content: '';
+  position: absolute; inset: 7px;
+  border-radius: 50%;
+  background: var(--c-surface);
+}
+.pg-ring > span {
+  position: relative;
+  font-size: 20px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pg-ring.pass { background: conic-gradient(var(--c-ok) calc(var(--p) * 1%), var(--c-surface-3) 0); }
+.pg-ring.fail { background: conic-gradient(var(--c-danger) calc(var(--p) * 1%), var(--c-surface-3) 0); }
+
+.pg-score-info { flex: 1; min-width: 0; }
+.pg-score-info .t { font-size: 15px; font-weight: 650; margin-bottom: 2px; }
+.pg-score-info .d { font-size: var(--fs-sm); color: var(--c-text-2); }
+
+/* 用例列表 */
+.pg-cases {
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.pg-case {
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-sm);
+  transition: border-color var(--tr);
+}
+.pg-case.pass { border-left: 3px solid var(--c-ok); }
+.pg-case.fail { border-left: 3px solid var(--c-danger); }
+.pg-case.warn { border-left: 3px solid var(--c-warn); }
+
+.pg-case-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  cursor: pointer;
+}
+.pg-case-head .name { flex: 1; font-weight: 550; }
+.pg-case-head .ms { font-size: 11px; color: var(--c-text-3); font-variant-numeric: tabular-nums; }
+
+/* 用例详情（默认折叠，失败时自动展开） */
+.pg-case-body {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px dashed var(--c-border);
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  display: none;
+}
+.pg-case.open .pg-case-body { display: block; }
+
+.pg-io {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+.pg-io .k { color: var(--c-text-3); }
+.pg-io .v {
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--c-code-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.pg-io .v.exp { color: var(--c-ok); }
+.pg-io .v.act { color: var(--c-danger); }
+
+/* ---------- 题目描述区 ---------- */
+.pg-problem {
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.pg-problem-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.pg-problem-head h2 {
+  font-size: var(--fs-xl);
+  margin: 0;
+  flex: 1;
+}
+
+/* 难度徽标 */
+.pg-diff {
+  padding: 2px 10px;
+  border-radius: var(--r-full);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pg-diff.easy   { background: var(--c-ok-weak);    color: var(--c-ok); }
+.pg-diff.medium { background: var(--c-warn-weak);  color: var(--c-warn); }
+.pg-diff.hard   { background: var(--c-danger-weak); color: var(--c-danger); }
+
+.pg-sig {
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  background: var(--c-code-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin: var(--sp-3) 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ---------- 题目选择器 ---------- */
+.pg-probs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.pg-prob-card {
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+  background: var(--c-surface);
+  cursor: pointer;
+  transition: all var(--tr);
+  text-align: left;
+  width: 100%;
+}
+.pg-prob-card:hover {
+  border-color: var(--c-brand);
+  background: var(--c-brand-weak);
+  transform: translateY(-1px);
+  box-shadow: var(--c-shadow-sm);
+}
+.pg-prob-card.on {
+  border-color: var(--c-brand);
+  background: var(--c-brand-weak);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-brand) 22%, transparent);
+}
+.pg-prob-card .tt {
+  font-weight: 650;
+  font-size: var(--fs-md);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pg-prob-card .meta {
+  font-size: 11px;
+  color: var(--c-text-3);
+}
+
+/* 已解决标记 */
+.pg-solved {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--c-ok);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+/* ---------- 运行中转圈 ---------- */
+.pg-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+.pg-busy::before {
+  content: '';
+  width: 13px; height: 13px;
+  border: 2px solid var(--c-border);
+  border-top-color: var(--c-brand);
+  border-radius: 50%;
+  animation: pg-spin .7s linear infinite;
+}
+@keyframes pg-spin { to { transform: rotate(360deg); } }
+
+/* 移动端：编辑器高度降低 */
+@media (max-width: 640px) {
+  .pg-editor { height: 46vh; }
+  .pg-gutter { width: 34px; font-size: 12px; }
+  .pg-code { font-size: 12px; }
+}

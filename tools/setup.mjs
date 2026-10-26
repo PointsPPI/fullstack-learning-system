@@ -86,7 +86,7 @@ log('');
 const results = [];
 
 /* ---- 1. 环境检查 ---- */
-step('[1/5] 检查环境');
+step('[1/6] 检查环境');
 
 function checkCmd(cmd, args, name, hint) {
   const r = spawnSync(cmd, args, { stdio: 'pipe', encoding: 'utf8' });
@@ -119,7 +119,7 @@ info('若你的 MySQL 装在别处，改 tools/db-up.bat 里的 BASEDIR 变量')
 
 /* ---- 2. Maven 发行版 ---- */
 step('');
-step('[2/5] 检查工坊 Maven');
+step('[2/6] 检查工坊 Maven');
 
 const mvnHome = 'tools/maven/maven-3.9.9';
 if (exists(`${mvnHome}/bin/mvn.cmd`) || exists(`${mvnHome}/bin/mvn`)) {
@@ -161,9 +161,42 @@ if (exists(`${mvnHome}/bin/mvn.cmd`) || exists(`${mvnHome}/bin/mvn`)) {
   }
 }
 
+/* ---- 2.5 Redis（可选，缓存/限流/判题不依赖但后端启动需要） ---- */
+step('');
+step('[3/6] 检查 Redis');
+
+const redisExe = 'tools/redis/redis-server.exe';
+if (fs.existsSync(path.join(ROOT, redisExe)) || fs.existsSync(path.join(ROOT, 'tools/redis/redis-server'))) {
+  ok('Redis 已就绪（tools/redis/）');
+  results.push({ item: 'Redis', status: 'ready' });
+} else if (CHECK_ONLY || MAVEN_ONLY) {
+  warn('Redis 缺失（--check 模式不下载）');
+  info('后端启动时会因无法连接 Redis 而失败；可设 REDIS_HOST 指向已有实例');
+  results.push({ item: 'Redis', status: 'missing' });
+} else {
+  info('未找到，尝试下载 Windows 版 Redis 5.0.14 …');
+  const url = 'https://github.com/tporadowski/redis/releases/download/v5.0.14.1/Redis-x64-5.0.14.1.zip';
+  try {
+    fs.mkdirSync(path.join(ROOT, 'tools/redis'), { recursive: true });
+    const zip = path.join(ROOT, 'tools', `_redis-${Date.now()}.zip`);
+    const size = await download(url, zip);
+    log(`     ${(size / 1048576).toFixed(1)} MB`);
+    unzip(zip, path.join(ROOT, 'tools/redis'));
+    fs.unlinkSync(zip);
+    ok('Redis 安装完成');
+    results.push({ item: 'Redis', status: 'installed' });
+  } catch (e) {
+    err('Redis 下载失败：' + e.message);
+    info('手动下载：' + url);
+    info('解压到 tools/redis/ 目录即可');
+    info('或使用已有的 Redis：设置环境变量 REDIS_HOST / REDIS_PORT');
+    results.push({ item: 'Redis', status: 'failed' });
+  }
+}
+
 /* ---- 3. 内容打包 ---- */
 step('');
-step('[3/5] 打包学习内容');
+step('[4/6] 打包学习内容');
 
 if (exists('learning-system/content.bundle.js')) {
   const size = fs.statSync(path.join(ROOT, 'learning-system/content.bundle.js')).size;
@@ -185,7 +218,7 @@ if (exists('learning-system/content.bundle.js')) {
 
 /* ---- 4. Maven 依赖（可选，耗时） ---- */
 step('');
-step('[4/5] 检查 Maven 依赖仓库');
+step('[5/6] 检查 Maven 依赖仓库');
 
 const repoDir = 'tools/maven/repo';
 const repoReady = exists(repoDir) && fs.readdirSync(path.join(ROOT, repoDir)).length > 5;
@@ -208,7 +241,7 @@ if (repoReady) {
 
 /* ---- 5. 数据库 ---- */
 step('');
-step('[5/5] 检查数据库');
+step('[6/6] 检查数据库');
 
 if (exists('dbserver/data')) {
   ok('数据库数据目录已存在');

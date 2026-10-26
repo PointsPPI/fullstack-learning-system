@@ -91,6 +91,11 @@ public class BookServiceImpl implements BookService {
     }
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(
+            value = "book:detail",
+            key = "#id",
+            unless = "#result == null"
+    )
     public BookDetailVO detail(Long id) {
         // orElseThrow —— 业务主线清晰，不用层层 if-null
         Book b = bookMapper.findById(id);
@@ -113,6 +118,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @org.springframework.cache.annotation.CacheEvict(value = "book:detail", allEntries = true)
     public Long create(BookCreateDTO dto) {
         // 业务规则 ①：分类必须存在
         if (categoryMapper.findById(dto.categoryId()) == null) {
@@ -143,6 +149,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @org.springframework.cache.annotation.CacheEvict(value = "book:detail", key = "#id")
     public void update(Long id, BookUpdateDTO dto) {
         Book exist = bookMapper.findById(id);
         if (exist == null) throw new BizException(ResultCode.BOOK_NOT_FOUND);
@@ -164,6 +171,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @org.springframework.cache.annotation.CacheEvict(value = "book:detail", key = "#id")
     public void delete(Long id) {
         Book exist = bookMapper.findById(id);
         if (exist == null) throw new BizException(ResultCode.BOOK_NOT_FOUND);

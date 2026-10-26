@@ -272,6 +272,83 @@ async function checkFrontend() {
   return `${required.length} 个文件结构完整，无外部 CDN 依赖`;
 }
 
+
+/* ============================================================
+ * ⑧ Redis 能力（缓存 / 幂等 / 限流）
+ * ============================================================ */
+async function checkRedis() {
+  if (NO_NET) return '已跳过（--no-net）';
+  const http = await import('node:http');
+  const req = (method, path, { headers = {}, body } = {}) => new Promise((resolve, reject) => {
+    const r = http.request({ host: '127.0.0.1', port: 8080, method, path, agent: false,
+      headers: { Connection: 'close', ...headers } }, (res) => {
+      let buf = ''; res.setEncoding('utf8');
+      res.on('data', (c) => { buf += c; });
+      res.on('end', () => { let j = null; try { j = buf ? JSON.parse(buf) : null; } catch {} resolve({ status: res.statusCode, json: j }); });
+    });
+    r.on('error', reject);
+    if (body) r.write(body);
+    r.end();
+  });
+
+  // ① 缓存：两次请求应第二次更快
+  const t1 = Date.now(); await req('GET', '/api/books/1'); const d1 = Date.now() - t1;
+  const t2 = Date.now(); await req('GET', '/api/books/1'); const d2 = Date.now() - t2;
+  if (d2 > d1) throw new Error(`缓存未生效：第一次 ${d1}ms，第二次 ${d2}ms（应更快）`);
+
+  // ② 幂等：3 秒内重复提交应被拒
+  const body = JSON.stringify({ readerId: 3 });
+  const h = { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) };
+  const r1 = await req('POST', '/api/books/6/borrow', { headers: h, body });
+  const r2 = await req('POST', '/api/books/6/borrow', { headers: h, body });
+  const idemOk = r1.json?.code !== 10502 && r2.json?.code === 10502;
+  if (!idemOk) {
+    throw new Error(`幂等未生效：第1次 code=${r1.json?.code}，第2次 code=${r2.json?.code}（应 10502）`);
+  }
+
+  return `缓存 ${d1}ms→${d2}ms，幂等第2次被拒(10502)`;
+}
+
+/* ============================================================
+ * ⑨ 代码沙箱与判题
+ * ============================================================ */
+async function checkSandbox() {
+  if (NO_NET) return '已跳过（--no-net）';
+  const http = await import('node:http');
+  const post = (path, obj) => new Promise((resolve, reject) => {
+    const body = JSON.stringify(obj);
+    const r = http.request({ host: '127.0.0.1', port: 8080, method: 'POST', path, agent: false,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), Connection: 'close' } },
+      (res) => { let buf = ''; res.setEncoding('utf8');
+        res.on('data', (c) => { buf += c; });
+        res.on('end', () => { let j = null; try { j = JSON.parse(buf); } catch {} resolve(j); }); });
+    r.on('error', reject); r.write(body); r.end();
+  });
+
+  // ① 正常运行
+  const ok = await post('/api/code/run', { code: 'public class Main { public static void main(String[] a){ System.out.print("42"); } }' });
+  if (ok?.data?.status !== 'PASS') throw new Error('沙箱：正常代码未通过');
+  if (ok.data.stdout.trim() !== '42') throw new Error(`沙箱：输出错误 [${ok.data.stdout}]`);
+
+  // ② 编译错误应被识别
+  const ce = await post('/api/code/run', { code: 'public class Main { public static void main(String[] a){ int x = "s"; } }' });
+  if (ce?.data?.status !== 'COMPILE_ERROR') throw new Error('沙箱：编译错误未被识别');
+
+  // ③ 死循环应超时
+  const to = await post('/api/code/run', { code: 'public class Main { public static void main(String[] a){ while(true){} } }', timeoutMs: 2000 });
+  if (to?.data?.status !== 'TIMEOUT') throw new Error('沙箱：死循环未被超时拦截');
+
+  // ④ 判题：正确实现满分
+  const right = await post('/api/code/judge', { problemId: 'sum-two', code: 'public static int add(int a, int b) { return a + b; }' });
+  if (right?.data?.score !== 100) throw new Error(`判题：正确实现得分 ${right?.data?.score}（应 100）`);
+
+  // ⑤ 判题：硬编码应被隐藏用例抓住
+  const wrong = await post('/api/code/judge', { problemId: 'sum-two', code: 'public static int add(int a, int b) { return 3; }' });
+  if (wrong?.data?.score === 100) throw new Error('判题：硬编码 return 3 竟然满分（隐藏用例失效）');
+
+  return `沙箱3项+判题2项通过（硬编码得分 ${wrong.data.score}）`;
+}
+
 /* ============================================================
  * ⑥ 数据库连通（可选）
  * ============================================================ */
@@ -340,6 +417,8 @@ const checks = [
   ['SQL 练习库', checkSqlLab],
   ['数据库连通', checkDatabase],
   ['后端接口', checkBackend],
+  ['Redis 能力', checkRedis],
+  ['代码沙箱与判题', checkSandbox],
 ];
 
 console.log('');

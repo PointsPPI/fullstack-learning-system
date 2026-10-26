@@ -27,11 +27,26 @@ public enum ResultCode {
     BOOK_ISBN_DUPLICATE(20004, "ISBN 已存在"),
     BOOK_HAS_BORROW(20005, "该图书仍有未归还记录，不能删除"),
 
+    // ---- 并发控制 1.5xxxx ----
+    TOO_MANY_REQUESTS(10501, "请求过于频繁，请稍后再试"),
+    DUPLICATE_SUBMIT(10502, "请勿重复提交"),
+
     // ---- 借阅 3xxxx ----
     BORROW_NOT_FOUND(30001, "借阅记录不存在"),
     BORROW_ALREADY_RETURNED(30002, "该记录已归还，不能重复归还"),
     READER_FROZEN(30003, "读者账号已冻结"),
     READER_BORROW_LIMIT(30004, "已达最大借阅数量（5 本）"),
+    BOOK_BUSY(30005, "该图书正在被其他读者借阅，请稍后重试"),
+
+    // ---- 代码执行 / 判题 5xxxx ----
+    CODE_TOO_LONG(50001, "代码长度超过限制"),
+    CODE_COMPILE_ERROR(50002, "编译失败"),
+    CODE_RUNTIME_ERROR(50003, "运行出错"),
+    CODE_TIMEOUT(50004, "运行超时（可能存在死循环）"),
+    CODE_OUTPUT_TOO_LARGE(50005, "输出内容过多"),
+    SANDBOX_BUSY(50006, "判题机繁忙，请稍后再试"),
+    PROBLEM_NOT_FOUND(50007, "题目不存在"),
+    TESTCASE_NOT_FOUND(50008, "题目缺少测试用例"),
 
     // ---- 读者 4xxxx ----
     READER_NOT_FOUND(40001, "读者不存在"),

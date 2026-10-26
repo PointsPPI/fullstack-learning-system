@@ -1,25 +1,22 @@
 {
   "_comment": "所有面向用户的提示文案集中在这里。bat 只传 key，中文由 msg.mjs 读取本文件输出 —— 这样 .bat 可以保持纯 ASCII，永远不会触发 cmd 的按字节解析缺陷。",
-
   "start.banner": "全栈学习系统 · 一键启动",
   "start.java_ok": "[1/6] Java 就绪",
   "start.maven_ok": "[2/6] Maven 就绪",
   "start.db_start": "[3/6] 启动专用 MySQL（端口 3307）...",
   "start.db_skip": "[3/6] MySQL 3307 已在运行，跳过",
-  "start.build": "[4/6] 打包学习内容...",
-  "start.backend": "[5/6] 启动后端 Spring Boot（端口 8080，首次约 30 秒）...",
-  "start.backend_skip": "[5/6] 后端 8080 已在运行，跳过",
-  "start.static": "[6/6] 启动静态服务器（端口 5173）...",
+  "start.build": "[5/7] 打包学习内容...",
+  "start.backend": "[6/7] 启动后端 Spring Boot（端口 8080，首次约 30 秒）...",
+  "start.backend_skip": "[6/7] 后端 8080 已在运行，跳过",
+  "start.static": "[7/7] 启动静态服务器（端口 5173）...",
   "start.waiting": "等待后端就绪...",
   "start.ready": "后端已就绪",
   "start.not_ready": "后端似乎还没起来。学习系统本身不依赖后端，可以先看内容。",
   "start.close_hint": "（本窗口可以关闭，不影响已启动的服务）",
-
   "err.no_java": "找不到 java。请确认 JDK 21 已安装且 PATH 中有 java。",
   "err.no_maven": "找不到工坊 Maven：tools\\maven\\maven-3.9.9",
   "err.no_maven_why": "这是为了隔离你的全局 Maven 4.0.0-rc。",
   "err.build_fail": "内容打包失败，请看上面的错误信息。",
-
   "db.check_port": "[1/3] 检查端口 {port} ...",
   "db.port_busy": "端口 {port} 已在监听，实例已启动，跳过启动步骤。",
   "db.first_run": "[2/3] 首次运行：初始化数据目录 ...",
@@ -33,7 +30,6 @@
   "db.edit_basedir": "请修改本文件里的 BASEDIR 变量，指向你的 MySQL 安装目录。",
   "db.init_fail": "初始化失败",
   "db.timeout": "启动超时，请查看 dbserver\\mysqld.log",
-
   "urls.title": "已打开学习系统",
   "urls.study": "学习系统",
   "urls.journey": "请求旅程",
@@ -41,5 +37,10 @@
   "urls.api": "后端接口",
   "urls.log": "后端日志    logs\\server.log",
   "urls.stop_backend": "停止后端    taskkill /FI \"WINDOWTITLE eq bookhub-backend*\"",
-  "urls.stop_db": "停止数据库  taskkill /FI \"WINDOWTITLE eq bookhub-mysql-3307*\""
+  "urls.stop_db": "停止数据库  taskkill /FI \"WINDOWTITLE eq bookhub-mysql-3307*\"",
+  "start.redis": "[4/7] 启动 Redis（端口 6380）...",
+  "start.redis_skip": "[4/7] Redis 6380 已在运行，跳过",
+  "start.redis_missing": "Redis 未安装（tools/redis 不存在），缓存/限流/分布式锁功能将不可用",
+  "urls.practice": "练习场",
+  "urls.judge": "编程挑战"
 }

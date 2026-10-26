@@ -36,6 +36,20 @@ if errorlevel 1 (
   node tools\msg.mjs step start.db_skip
 )
 
+REM ---------- 3.5 Redis ----------
+netstat -ano | findstr ":6380 " | findstr LISTENING >nul 2>&1
+if errorlevel 1 (
+  node tools\msg.mjs step start.redis
+  if exist "tools\redis\redis-server.exe" (
+    start "bookhub-redis" /min cmd /c "cd /d %CD%\tools\redis && redis-server.exe --port 6380 --save "" --appendonly no > redis.log 2>&1"
+    ping -n 3 127.0.0.1 >nul
+  ) else (
+    node tools\msg.mjs warn start.redis_missing
+  )
+) else (
+  node tools\msg.mjs step start.redis_skip
+)
+
 node tools\msg.mjs step start.build
 node tools\build-content.mjs
 if errorlevel 1 goto :buildfail
