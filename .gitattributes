@@ -1,0 +1,62 @@
+# ============================================================
+#  .gitattributes —— 统一换行符，避免跨平台 diff 噪音与脚本失效
+# ============================================================
+#
+#  背景：
+#    同一次 git add，我收到了 100 多条 "LF will be replaced by CRLF" 警告。
+#    这说明 core.autocrlf 在起作用 —— git 把仓库里的 LF 转成工作区的 CRLF。
+#    问题有两个：
+#      ① 在 Linux CI 上 clone，CRLF 会被带进 .sh / .mjs，导致 shebang 失效
+#      ② 每次跨平台改动，整个文件都显示为"全部删除+全部新增"，diff 无法阅读
+#
+#  解决：显式声明每类文件用什么换行符。
+#    text=auto            普通文本，交给 git 决定（仓库统一 LF）
+#    eol=lf               强制 LF（脚本、配置、源码）
+#    eol=crlf             强制 CRLF（Windows 批处理必须有，否则 cmd 解析异常）
+#    binary               二进制，不做任何转换
+# ============================================================
+
+# ---------- 默认：仓库统一 LF ----------
+* text=auto eol=lf
+
+# ---------- Windows 批处理：必须 CRLF ----------
+# cmd.exe 对 LF-only 的 .bat/.cmd 处理不可靠（goto/label 可能失效）
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# ---------- 脚本与配置：必须 LF ----------
+*.sh    text eol=lf
+*.mjs   text eol=lf
+*.js    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.xml   text eol=lf
+*.md    text eol=lf
+*.sql   text eol=lf
+*.java  text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+
+# ---------- 二进制：不做转换 ----------
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.jar   binary
+*.class binary
+*.zip   binary
+
+# ---------- 语言标记（GitHub 语言统计更准） ----------
+*.java  linguist-language=Java
+*.mjs   linguist-language=JavaScript
+*.md    linguist-documentation
+learning-system/content/packs/**/*.md linguist-documentation
+
+# ---------- 构建产物：标记为生成物，不参与语言统计 ----------
+learning-system/content.bundle.js linguist-generated=true
+learning-system/vendor/*           linguist-vendored
