@@ -1,0 +1,642 @@
+/* ============================================================
+ * polish.css —— v2.0.1 视觉与交互增强层
+ * ------------------------------------------------------------
+ * 设计目标（每一条都对应实测发现的真实问题）：
+ *
+ *   ① 层次感：原界面"所有卡片一样白"，阅读时找不到重点。
+ *      → 引入 elevation（阴影三级）+ 微妙的渐变背景
+ *
+ *   ② 反馈：点击后没有任何动效，不知道"点到了没有"。
+ *      → 所有可交互元素加 :active 位移 + focus 环
+ *
+ *   ③ 空状态：热力图全空时只有一片灰格子，不知道该怎么办。
+ *      → 空状态给"做什么"的引导，而不是干等
+ *
+ *   ④ 动效克制：不为了炫技而动画，只在"状态变化"处动
+ *      （进度条、卡片进场、错误抖动）
+ *
+ *   ⑤ 无障碍：支持 prefers-reduced-motion
+ *
+ * 加载顺序：app.css → polish.css（后者覆盖前者）
+ * ============================================================ */
+
+/* ============================================================
+ *  一、设计令牌增强
+ * ============================================================ */
+:root {
+  /* 三级阴影：用"离地高度"而非"粗细"来区分层级 */
+  --el-1: 0 1px 2px rgba(20, 25, 50, .06),
+          0 1px 3px rgba(20, 25, 50, .04);
+  --el-2: 0 2px 4px rgba(20, 25, 50, .06),
+          0 4px 12px rgba(20, 25, 50, .07);
+  --el-3: 0 4px 8px rgba(20, 25, 50, .08),
+          0 12px 32px rgba(20, 25, 50, .11);
+
+  /* 品牌渐变：用于主按钮、进度条、活跃状态 */
+  --grad-brand: linear-gradient(135deg, #4f7cff 0%, #7c5cff 55%, #a855f7 100%);
+  --grad-brand-soft: linear-gradient(135deg,
+      color-mix(in srgb, var(--c-brand) 14%, transparent),
+      color-mix(in srgb, #a855f7 10%, transparent));
+
+  /* 动效时长统一（三档，不要随手写 0.3s） */
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 360ms;
+
+  /* 缓动曲线：进快出慢，符合物理直觉 */
+  --e-out: cubic-bezier(.22, 1, .36, 1);
+  --e-in-out: cubic-bezier(.4, 0, .2, 1);
+  --e-spring: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+[data-theme="dark"] {
+  --el-1: 0 1px 2px rgba(0, 0, 0, .35), 0 1px 3px rgba(0, 0, 0, .25);
+  --el-2: 0 2px 4px rgba(0, 0, 0, .35), 0 4px 12px rgba(0, 0, 0, .3);
+  --el-3: 0 4px 8px rgba(0, 0, 0, .4), 0 12px 32px rgba(0, 0, 0, .45);
+  --grad-brand: linear-gradient(135deg, #6b93ff 0%, #9b7cff 55%, #c084fc 100%);
+}
+
+/* 背景加极淡的径向光晕，避免"一片死白" */
+body {
+  background-image:
+    radial-gradient(900px 500px at 12% -8%,
+      color-mix(in srgb, var(--c-brand) 7%, transparent), transparent 65%),
+    radial-gradient(700px 420px at 92% 4%,
+      color-mix(in srgb, #a855f7 6%, transparent), transparent 60%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* ============================================================
+ *  二、顶栏：从"一条白条"变成"有层次的玻璃条"
+ * ============================================================ */
+.topbar {
+  box-shadow: 0 1px 0 var(--c-border), 0 2px 12px rgba(20, 25, 50, .03);
+  transition: box-shadow var(--t-base) var(--e-out),
+              background var(--t-base);
+}
+/* 向下滚动时阴影加深 —— 给"页面已滚动"的物理感 */
+body.scrolled .topbar {
+  box-shadow: 0 1px 0 var(--c-border), var(--el-2);
+}
+
+/* 品牌标识：加一点渐变与光泽 */
+.brand-mark {
+  background: var(--grad-brand);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--c-brand) 38%, transparent);
+  transition: transform var(--t-base) var(--e-spring),
+              box-shadow var(--t-base);
+  position: relative;
+  overflow: hidden;
+}
+/* 斜向高光扫过（hover 时） */
+.brand-mark::after {
+  content: '';
+  position: absolute;
+  inset: -50% -120%;
+  background: linear-gradient(115deg, transparent 42%,
+    rgba(255,255,255,.5) 50%, transparent 58%);
+  transform: translateX(-60%);
+  transition: transform 620ms var(--e-out);
+}
+.brand:hover .brand-mark::after { transform: translateX(60%); }
+.brand:hover .brand-mark {
+  transform: rotate(-4deg) scale(1.06);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--c-brand) 50%, transparent);
+}
+
+/* 搜索框：hover 与聚焦更明显 */
+.search input {
+  transition: border-color var(--t-base), box-shadow var(--t-base),
+              background var(--t-base), width var(--t-base);
+  box-shadow: inset 0 1px 2px rgba(20, 25, 50, .04);
+}
+.search input:hover:not(:focus) {
+  border-color: var(--c-border-strong);
+  background: var(--c-surface);
+}
+.search input:focus {
+  box-shadow: 0 0 0 3px var(--c-brand-weak),
+              inset 0 1px 2px rgba(20, 25, 50, .02);
+}
+
+/* 搜索结果下拉：进场动画 */
+.search-drop {
+  animation: drop-in var(--t-base) var(--e-out) both;
+  transform-origin: top center;
+}
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-6px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+.sr-item {
+  transition: background var(--t-fast), padding-left var(--t-fast) var(--e-out);
+}
+.sr-item:hover, .sr-item.active {
+  padding-left: calc(var(--sp-3) + 3px);
+}
+
+/* 图标按钮：hover 有轻微抬起 */
+.icon-btn {
+  transition: background var(--t-fast), color var(--t-fast),
+              transform var(--t-fast) var(--e-out);
+}
+.icon-btn:hover { transform: translateY(-1px); }
+.icon-btn:active { transform: translateY(0) scale(.94); }
+.icon-btn.active { box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-brand) 26%, transparent); }
+
+/* 版本徽标：小而醒目，不抢品牌名的视觉重量 */
+.brand-ver {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--f-mono);
+  letter-spacing: .02em;
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--c-brand) 12%, transparent);
+  color: var(--c-brand-strong);
+  border: 1px solid color-mix(in srgb, var(--c-brand) 22%, transparent);
+  transition: background var(--t-base), transform var(--t-base) var(--e-spring);
+  cursor: default;
+}
+.brand:hover .brand-ver {
+  background: color-mix(in srgb, var(--c-brand) 20%, transparent);
+  transform: translateY(-1px);
+}
+@media (max-width: 860px) {
+  .brand-ver { display: none; }
+}
+
+/* ============================================================
+ *  三、侧栏：分组更清晰、活跃态更有指示感
+ * ============================================================ */
+.sidebar {
+  /* 右侧加一道极淡渐变，制造"侧栏是独立面板"的感觉 */
+  background-image: linear-gradient(to right,
+    var(--c-surface-2) 92%, color-mix(in srgb, var(--c-brand) 3%, var(--c-surface-2)));
+}
+
+.side-title {
+  position: relative;
+}
+.side-title::after {
+  content: '';
+  position: absolute;
+  left: var(--sp-3); right: var(--sp-3); bottom: 0;
+  height: 1px;
+  background: linear-gradient(to right, var(--c-border), transparent);
+}
+
+/* 包分组：hover 时小圆点发光 */
+.pack-dot {
+  transition: box-shadow var(--t-base), transform var(--t-base) var(--e-spring);
+}
+.pack-head:hover .pack-dot {
+  box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 20%, transparent);
+  transform: scale(1.15);
+}
+
+/* 主题链接：活跃态左侧竖条做"生长"动画 */
+.topic-link {
+  transition: background var(--t-base) var(--e-out),
+              color var(--t-fast),
+              padding-left var(--t-base) var(--e-out);
+}
+.topic-link::before {
+  transition: height var(--t-base) var(--e-out),
+              opacity var(--t-fast);
+  opacity: 0;
+  height: 0;
+}
+.topic-link.active::before {
+  opacity: 1;
+  height: 60%;
+  animation: bar-grow var(--t-base) var(--e-out) both;
+}
+@keyframes bar-grow {
+  from { height: 0; opacity: 0; }
+  to   { height: 60%; opacity: 1; }
+}
+.topic-link:hover { padding-left: calc(var(--sp-3) + 2px); }
+
+/* 进度环：hover 放大 */
+.ring {
+  transition: transform var(--t-base) var(--e-spring);
+}
+.topic-link:hover .ring { transform: scale(1.2); }
+
+/* ============================================================
+ *  四、卡片与按钮
+ * ============================================================ */
+.card {
+  box-shadow: var(--el-1);
+  transition: box-shadow var(--t-base) var(--e-out),
+              border-color var(--t-base),
+              transform var(--t-base) var(--e-out);
+  /* 顶部一道极淡高光，模拟"受光面" */
+  background-image: linear-gradient(to bottom,
+    color-mix(in srgb, #fff 40%, transparent), transparent 40px);
+}
+[data-theme="dark"] .card {
+  background-image: linear-gradient(to bottom,
+    color-mix(in srgb, #fff 2.5%, transparent), transparent 40px);
+}
+.card.hoverable:hover {
+  box-shadow: var(--el-2);
+  transform: translateY(-2px);
+}
+.card.hoverable:active { transform: translateY(0); }
+
+/* 主按钮：渐变 + 光泽 + 阴影 */
+.btn {
+  transition: background var(--t-fast), border-color var(--t-fast),
+              color var(--t-fast), transform var(--t-fast) var(--e-out),
+              box-shadow var(--t-fast);
+  position: relative;
+  overflow: hidden;
+}
+.btn:active { transform: translateY(1px) scale(.985); }
+
+.btn-primary {
+  background: var(--grad-brand);
+  border-color: transparent;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--c-brand) 30%, transparent),
+              0 2px 8px color-mix(in srgb, var(--c-brand) 22%, transparent);
+}
+.btn-primary:hover {
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--c-brand) 36%, transparent),
+              0 6px 18px color-mix(in srgb, var(--c-brand) 28%, transparent);
+  filter: saturate(1.08) brightness(1.04);
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%,
+    rgba(255,255,255,.28) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 560ms var(--e-out);
+  pointer-events: none;
+}
+.btn-primary:hover::after { transform: translateX(120%); }
+
+/* 焦点环：键盘用户可见，鼠标点击不显示 */
+.btn:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+ *  五、进度条：加流光，强调"正在进行"
+ * ============================================================ */
+.progress {
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(20, 25, 50, .06);
+}
+.progress > i {
+  background: var(--grad-brand);
+  position: relative;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--c-brand) 40%, transparent);
+}
+/* 流光：只在 0 < 进度 < 100 时显示，避免"完成了还在闪" */
+.progress > i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent, rgba(255,255,255,.35), transparent);
+  animation: shimmer 2.2s var(--e-in-out) infinite;
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  60%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ============================================================
+ *  六、统计卡：数字滚动 + 图标
+ * ============================================================ */
+.stat {
+  box-shadow: var(--el-1);
+  transition: transform var(--t-base) var(--e-out),
+              box-shadow var(--t-base);
+  position: relative;
+  overflow: hidden;
+}
+/* 左侧色条：用颜色标记语义 */
+.stat::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--c-border-strong);
+  transition: background var(--t-base);
+}
+.stat.brand::before { background: var(--grad-brand); }
+.stat.ok::before    { background: var(--c-ok); }
+.stat.warn::before  { background: var(--c-warn); }
+.stat:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--el-2);
+}
+
+.stat .s-v {
+  transition: color var(--t-base);
+}
+
+/* ============================================================
+ *  七、空状态：从"干等"变成"给方向"
+ * ============================================================ */
+.empty {
+  position: relative;
+}
+.empty .e-icon {
+  font-size: 44px;
+  animation: float 3.4s var(--e-in-out) infinite;
+  display: inline-block;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-6px) rotate(-3deg); }
+}
+
+/* 空状态加强版：带行动按钮 */
+.empty-action {
+  margin-top: var(--sp-4);
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+ *  八、热力图：空白时给引导
+ * ============================================================ */
+.heatmap {
+  padding: var(--sp-2) 0;
+}
+.hm-cell {
+  transition: transform var(--t-fast) var(--e-spring),
+              outline-color var(--t-fast);
+  cursor: pointer;
+}
+.hm-cell:hover {
+  transform: scale(1.5);
+  outline: 1.5px solid var(--c-text-3);
+  position: relative;
+  z-index: 2;
+}
+/* 今天：加一圈描边 */
+.hm-cell.today {
+  outline: 1.5px solid var(--c-brand);
+  outline-offset: 1px;
+}
+
+/* ============================================================
+ *  九、Markdown 正文：可读性增强
+ * ============================================================ */
+.prose {
+  /* 中文正文用稍大的行高，长文阅读更舒适 */
+  line-height: 1.82;
+}
+
+.prose h2 {
+  position: relative;
+  scroll-margin-top: calc(var(--header-h) + 20px);
+}
+
+/* 代码块：hover 时提亮边框 */
+.code-wrap {
+  transition: border-color var(--t-base), box-shadow var(--t-base);
+}
+.code-wrap:hover {
+  border-color: var(--c-border-strong);
+  box-shadow: var(--el-1);
+}
+
+/* 表格：斑马纹更柔和 + hover 高亮整行 */
+.prose tbody tr {
+  transition: background var(--t-fast);
+}
+.prose tbody tr:hover {
+  background: color-mix(in srgb, var(--c-brand) 6%, var(--c-surface)) !important;
+}
+
+/* callout：左侧竖条加"呼吸"光晕，让重点更醒目 */
+.callout {
+  position: relative;
+  transition: box-shadow var(--t-base), transform var(--t-base) var(--e-out);
+}
+.callout:hover {
+  transform: translateX(2px);
+  box-shadow: var(--el-1);
+}
+.callout::before {
+  content: '';
+  position: absolute;
+  left: -3px; top: 12%; bottom: 12%;
+  width: 3px;
+  border-radius: var(--r-full);
+  background: currentColor;
+  opacity: .85;
+  filter: blur(.3px);
+}
+.callout.tip::before      { color: var(--c-info); }
+.callout.key::before      { color: var(--c-brand); }
+.callout.warn::before     { color: var(--c-warn); }
+.callout.danger::before   { color: var(--c-danger); }
+.callout.compare::before  { color: #8b5cf6; }
+.callout.lab::before      { color: var(--c-ok); }
+.callout.interview::before{ color: #f43f5e; }
+
+/* ============================================================
+ *  十、主题页 Hero：加渐变底
+ * ============================================================ */
+.topic-hero {
+  position: relative;
+  padding: var(--sp-5);
+  margin: calc(var(--sp-2) * -1) calc(var(--sp-2) * -1) var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--grad-brand-soft);
+  border: 1px solid var(--c-border);
+  overflow: hidden;
+}
+/* 右上角装饰光斑 */
+.topic-hero::before {
+  content: '';
+  position: absolute;
+  top: -60px; right: -60px;
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--c-brand) 16%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.topic-hero h1 {
+  position: relative;
+  letter-spacing: -.025em;
+  background: linear-gradient(135deg, var(--c-text) 30%,
+    color-mix(in srgb, var(--c-brand) 70%, var(--c-text)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ============================================================
+ *  十一、节点清单：状态色更明确
+ * ============================================================ */
+.node-item {
+  transition: all var(--t-base) var(--e-out);
+  position: relative;
+}
+.node-item:hover {
+  transform: translateX(3px);
+  box-shadow: var(--el-1);
+}
+.node-item.s2 .ni-title { color: var(--c-ok); }
+.node-item.s2 .ni-title::after {
+  content: ' ✓';
+  font-weight: 700;
+}
+
+/* 状态切换时的"闪一下" */
+@keyframes status-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+.node-item.pop { animation: status-pop var(--t-slow) var(--e-spring); }
+
+/* ============================================================
+ *  十二、Toast：更明显的位置与动效
+ * ============================================================ */
+.toast {
+  backdrop-filter: blur(8px);
+  box-shadow: var(--el-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast.success { background: var(--c-ok); color: #fff; }
+.toast.error   { background: var(--c-danger); color: #fff; }
+.toast.info    { background: var(--c-text); color: var(--c-bg); }
+
+/* ============================================================
+ *  十三、TOC 目录：滚动高亮带滑入
+ * ============================================================ */
+.toc a {
+  transition: color var(--t-fast), border-color var(--t-fast),
+              padding-left var(--t-fast) var(--e-out);
+}
+.toc a.on {
+  padding-left: calc(var(--sp-2) + 3px);
+}
+
+/* ============================================================
+ *  十四、页面切换动画：只做淡入上移，克制
+ * ============================================================ */
+.page {
+  animation: page-in var(--t-slow) var(--e-out) both;
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 列表项错峰进场（用 nth-child 制造瀑布感） */
+.stagger > * {
+  animation: item-in var(--t-slow) var(--e-out) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 200ms; }
+@keyframes item-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+ *  十五、滚动条：更细、hover 才明显
+ * ============================================================ */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--c-text-3) 40%, transparent);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background var(--t-base);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--c-text-3) 70%, transparent);
+  background-clip: content-box;
+}
+
+/* ============================================================
+ *  十六、加载骨架屏（内容加载时的占位）
+ * ============================================================ */
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--c-surface-3) 25%,
+    color-mix(in srgb, var(--c-surface-3) 60%, var(--c-surface)) 37%,
+    var(--c-surface-3) 63%);
+  background-size: 400% 100%;
+  animation: skel 1.4s ease infinite;
+  border-radius: var(--r-sm);
+}
+@keyframes skel {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* ============================================================
+ *  十六点五、主题切换过渡
+ * ------------------------------------------------------------
+ * 只在切换的那一瞬间给颜色加过渡（polish.js 会加 .theme-changing 类），
+ * 320ms 后移除。
+ * 为什么不能常驻？常驻会让所有 hover 都带上颜色渐变，交互变"黏"。
+ * ============================================================ */
+body.theme-changing,
+body.theme-changing *,
+body.theme-changing *::before,
+body.theme-changing *::after {
+  transition: background-color 300ms var(--e-in-out),
+              border-color 300ms var(--e-in-out),
+              color 300ms var(--e-in-out) !important;
+}
+
+/* 节点键盘导航高亮 */
+.node-item.nav-focus {
+  background: var(--c-brand-weak) !important;
+  border-color: var(--c-brand) !important;
+}
+
+/* ============================================================
+ *  十七、无障碍：尊重"减少动效"偏好
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .progress > i::after { display: none; }
+}
+
+/* ============================================================
+ *  十八、深浅色下的细节修正
+ * ============================================================ */
+[data-theme="dark"] .card {
+  border-color: color-mix(in srgb, var(--c-border) 85%, #fff 15%);
+}
+[data-theme="dark"] .topic-hero {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--c-brand) 12%, var(--c-surface)),
+    color-mix(in srgb, #a855f7 8%, var(--c-surface)));
+}
+[data-theme="dark"] .btn-primary {
+  box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 3px 10px color-mix(in srgb, var(--c-brand) 30%, transparent);
+}

@@ -113,7 +113,7 @@
     const nav = [
       { icon: '🏠', label: '学习总览', path: '/', badge: '' },
       { icon: '🧪', label: '练习场 · 运行代码', path: '/practice' },
-      { icon: '📝', label: '编程挑战 · 判题', path: '/practice/' },
+      { icon: '📝', label: '编程挑战 · 判题', path: '/challenges' },
       { icon: '🔁', label: '今日复习', path: '/review', badge: stats.due ? String(stats.due) : '' },
       { icon: '🎯', label: '学习计划', path: '/plan' },
       { icon: '📊', label: '学习记录', path: '/stats' },
@@ -299,9 +299,9 @@
       tasks.push({
         icon: '🎉',
         title: '全部完成！',
-        desc: '所有节点都已掌握，去内容管理里添加新的学习包吧',
-        action: () => navigate('/manage'),
-        cta: '添加内容',
+        desc: '所有节点都已掌握。可以去做编程挑战，或添加新的学习内容',
+        action: () => navigate('/challenges'),
+        cta: '做编程题',
       });
     }
 
@@ -406,9 +406,11 @@
       else if (min >= 30) level = 3;
       else if (min >= 10) level = 2;
       else if (min > 0 || rec.n > 0) level = 1;
+      const isToday = k === store.todayKey();
       wrap.appendChild(el('div', {
-        class: 'hm-cell' + (level ? ' l' + level : ''),
-        title: `${k}  ${fmtDuration(rec.sec)}${rec.n ? ` · ${rec.n} 个新节点` : ''}`,
+        class: 'hm-cell' + (level ? ' l' + level : '') + (isToday ? ' today' : ''),
+        title: `${k}${isToday ? ' (今天)' : ''}  ${fmtDuration(rec.sec)}` +
+               `${rec.n ? ' / ' + rec.n + ' 个新节点' : ''}`,
       }));
     }
     return wrap;
@@ -875,7 +877,17 @@
         el('div', { class: 'empty' },
           el('div', { class: 'e-icon' }, '✅'),
           el('div', { class: 'e-t' }, '今天没有到期的复习'),
-          el('div', {}, '去学点新东西，或者提前复习下面这些"即将到期"的节点')
+          el('div', {}, '按艾宾浩斯曲线，现在确实不用复习。去学点新内容吧'),
+          el('div', { class: 'empty-action' },
+            el('button', {
+              class: 'btn btn-primary', type: 'button',
+              onclick: () => navigate('/'),
+            }, '📖 找点新内容'),
+            el('button', {
+              class: 'btn', type: 'button',
+              onclick: () => navigate('/practice'),
+            }, '🧪 写代码练手')
+          )
         )
       ));
     } else {
@@ -988,7 +1000,23 @@
         el('div', { class: 'empty' },
           el('div', { class: 'e-icon' }, '📋'),
           el('div', { class: 'e-t' }, '还没有计划'),
-          el('div', {}, '推荐：从"学习总览"里挑一个主题，把它拆成 3 个可执行任务')
+          el('div', {}, '把大目标拆成能勾掉的小任务，进度才可见'),
+          el('div', { class: 'empty-action' },
+            el('button', {
+              class: 'btn btn-primary', type: 'button',
+              onclick: () => {
+                store.addPlan('读完 CSS 盒模型与优先级，做 3 道测验', 'web-frontend/css', null);
+                store.addPlan('实现二分查找并通过判题', 'data-access/mysql-sql', null);
+                store.addPlan('跑通 BookHub 的借书接口', 'java-engineering/springboot', null);
+                toast('已添加 3 个示例任务');
+                render();
+              },
+            }, '✨ 一键添加示例任务'),
+            el('button', {
+              class: 'btn', type: 'button',
+              onclick: () => navigate('/'),
+            }, '先去看看内容')
+          )
         )
       ));
     } else {
@@ -1542,6 +1570,7 @@
   route('/search', (p, q) => viewSearch(q.q || ''));
   route('/practice', () => window.LS.practice.viewPlayground(navigate));
   route('/practice/:problemId', (p) => window.LS.practice.viewProblem(p.problemId, navigate));
+  route('/challenges', () => window.LS.practice.viewProblem('', navigate));
 
   /* ============================================================
    * 渲染入口

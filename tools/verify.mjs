@@ -350,6 +350,37 @@ async function checkSandbox() {
 }
 
 /* ============================================================
+ * ⑩ UI 增强层（polish.css / polish.js）
+ * ============================================================ */
+async function checkPolish() {
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [RIP('tools/test-polish.mjs')], {
+    encoding: 'utf8', cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const out = (r.stdout || '') + (r.stderr || '');
+  const m = out.match(/全部 (\d+) 项通过/);
+  if (m) return `${m[1]} 项 polish 断言通过`;
+  const f = out.match(/❌ (\d+) 项失败/);
+  throw new Error(f ? `${f[1]} 项 polish 检查失败` : 'polish 检查异常');
+}
+
+/* ============================================================
+ * ⑪ 练习场端到端
+ * ============================================================ */
+async function checkPractice() {
+  if (NO_NET) return '已跳过（--no-net）';
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [RIP('tools/test-practice.mjs')], {
+    encoding: 'utf8', cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const out = (r.stdout || '') + (r.stderr || '');
+  const m = out.match(/全部 (\d+) 项通过/);
+  if (m) return `${m[1]} 项练习场断言通过`;
+  const f = out.match(/❌ (\d+) 项失败/);
+  throw new Error(f ? `${f[1]} 项练习场检查失败` : '练习场检查异常');
+}
+
+/* ============================================================
  * ⑥ 数据库连通（可选）
  * ============================================================ */
 async function checkDatabase() {
@@ -419,6 +450,8 @@ const checks = [
   ['后端接口', checkBackend],
   ['Redis 能力', checkRedis],
   ['代码沙箱与判题', checkSandbox],
+  ['UI 增强层', checkPolish],
+  ['练习场端到端', checkPractice],
 ];
 
 console.log('');
