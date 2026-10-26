@@ -7,6 +7,23 @@
 
 ## 30 秒上手
 
+### 从 GitHub 克隆后（首次）
+
+```bash
+git clone https://github.com/<你的用户名>/fullstack-learning-system.git
+cd fullstack-learning-system
+node tools/setup.mjs
+```
+
+`setup.mjs` 会检查环境并补齐**特意未提交**的四样东西：
+
+| 未提交内容 | 原因 | setup 如何处理 |
+|---|---|---|
+| `tools/maven/maven-3.9.9/` | 11 MB 的 Maven 发行版 | 从华为云/清华镜像自动下载 |
+| `tools/maven/repo/` | 83 MB 依赖仓库 | 首次 `mvnw` 运行时自动下载 |
+| `learning-system/content.bundle.js` | 内容构建产物 | 自动运行 `build-content.mjs` |
+| `dbserver/` | MySQL 数据目录（本机专属） | 首次 `db-up.bat` 时自动创建 |
+
 ### 最快：双击
 
 ```
@@ -18,6 +35,17 @@
 ### 只想看学习内容（不需要后端）
 
 双击 `learning-system/index.html` 即可。所有内容已内联，离线可用。
+
+### 环境要求
+
+| 项 | 版本 | 必需 |
+|---|---|---|
+| Node.js | 18+ | ✅ 必需 |
+| JDK | 21+ | 仅后端 / JDBC 实验需要 |
+| MySQL | 8.0+ | 仅后端需要（脚本会建独立实例） |
+| Maven | 无需安装 | 由 `setup.mjs` 提供 3.9.9 |
+
+**不会碰你已有的环境**：专用 MySQL 跑在 3307（不是 3306），Maven 与依赖仓库都在项目目录内。
 
 ---
 
