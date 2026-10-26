@@ -54,3 +54,5 @@ npm-debug.log*
 # ---------- 保留 ----------
 # 模板内容包要提交（它是新增内容的起点）
 !learning-system/content/packs/_template/
+.dsh-office-*/
+_resume_work/
