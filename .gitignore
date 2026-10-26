@@ -1,0 +1,56 @@
+# ============================================================
+#  .gitignore
+#  两类东西不进版本库：
+#    ① 可再生的（构建产物、依赖、日志）
+#    ② 本机专属的（数据库文件、IDE 配置、个人进度）
+# ============================================================
+
+# ---------- ① 可再生产物 ----------
+# Maven 构建输出
+project/bookhub/target/
+target/
+# Java 编译输出（labs 下的 JDBC 实验）
+labs/jdbc/out/
+*.class
+
+# 依赖仓库与工具（体积大，可重新下载）
+# 说明：tools/maven/maven-3.9.9 与 repo 加起来约 99MB，
+#      不适合放 GitHub（单文件 >50MB 会警告）。README 里写了如何获取。
+tools/maven/maven-3.9.9/
+tools/maven/repo/
+
+# 内容构建产物（由 node tools/build-content.mjs 生成）
+# 说明：虽然是页面运行必需，但它是源码的派生物，
+#      提交会让 diff 噪音极大。首次使用请先跑构建脚本。
+learning-system/content.bundle.js
+
+# ---------- ② 本机专属 ----------
+# 数据库数据目录（本机 MySQL 实例，含用户数据）
+dbserver/
+
+# 日志
+logs/
+*.log
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~
+
+# ---------- 保留 ----------
+# 模板内容包要提交（它是新增内容的起点）
+!learning-system/content/packs/_template/

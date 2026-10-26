@@ -1,0 +1,94 @@
+{
+  "id": "data-access",
+  "title": "数据访问层",
+  "version": "1.0.0",
+  "color": "#e0674f",
+  "description": "MySQL 与 SQL / JDBC / MyBatis / 分层解耦 —— 从数据库到持久层架构",
+  "stages": [
+    { "title": "阶段一 · 数据库与 SQL", "topics": ["mysql-sql"] },
+    { "title": "阶段二 · 持久层演进", "topics": ["jdbc", "mybatis"] },
+    { "title": "阶段三 · 架构设计", "topics": ["layering"] }
+  ],
+  "topics": [
+    {
+      "id": "mysql-sql",
+      "title": "MySQL 与 SQL",
+      "summary": "建表、查询、索引、事务、EXPLAIN —— 数据的地基",
+      "tags": ["数据库", "核心"],
+      "estMin": 150,
+      "lesson": "lessons/01-mysql-sql.md",
+      "quiz": "quiz/01-mysql-sql.json",
+      "nodes": [
+        { "id": "ddl", "title": "建表、数据类型与约束", "key": true },
+        { "id": "dml-dql", "title": "增删改查基础", "key": true },
+        { "id": "join", "title": "JOIN 五种连接", "key": true },
+        { "id": "subquery", "title": "子查询与派生表" },
+        { "id": "group", "title": "聚合、GROUP BY、HAVING", "key": true },
+        { "id": "transaction", "title": "事务 ACID 与隔离级别", "key": true },
+        { "id": "index", "title": "索引原理与最左前缀", "key": true },
+        { "id": "explain", "title": "EXPLAIN 与慢查询优化", "key": true },
+        { "id": "design", "title": "范式与表设计" },
+        { "id": "window", "title": "窗口函数" },
+        { "id": "injection", "title": "SQL 注入与防护" }
+      ]
+    },
+    {
+      "id": "jdbc",
+      "title": "JDBC",
+      "summary": "六步流程、预编译、事务、连接池 —— 最原始的数据库访问方式",
+      "tags": ["持久层", "基础"],
+      "estMin": 70,
+      "lesson": "lessons/02-jdbc.md",
+      "quiz": "quiz/02-jdbc.json",
+      "prereq": ["mysql-sql"],
+      "nodes": [
+        { "id": "six-step", "title": "JDBC 六步流程", "key": true },
+        { "id": "statement", "title": "Statement vs PreparedStatement", "key": true },
+        { "id": "injection", "title": "SQL 注入对照实验", "key": true },
+        { "id": "transaction", "title": "事务与回滚" },
+        { "id": "pool", "title": "连接池原理" },
+        { "id": "dao", "title": "DAO 模式与资源关闭" }
+      ]
+    },
+    {
+      "id": "mybatis",
+      "title": "MyBatis",
+      "summary": "Mapper、动态 SQL、resultMap、缓存 —— 半自动 ORM 的主流选择",
+      "tags": ["持久层", "核心"],
+      "estMin": 100,
+      "lesson": "lessons/03-mybatis.md",
+      "quiz": "quiz/03-mybatis.json",
+      "prereq": ["jdbc"],
+      "nodes": [
+        { "id": "arch", "title": "核心组件与执行流程", "key": true },
+        { "id": "mapper", "title": "Mapper 接口与 XML 映射", "key": true },
+        { "id": "placeholder", "title": "#{} 与 ${} 的本质区别", "key": true },
+        { "id": "resultmap", "title": "resultMap 与驼峰映射" },
+        { "id": "dynamic", "title": "动态 SQL", "key": true },
+        { "id": "relation", "title": "一对一与一对多" },
+        { "id": "page", "title": "分页实现" },
+        { "id": "cache", "title": "一级与二级缓存", "key": true },
+        { "id": "trouble", "title": "常见异常排查" }
+      ]
+    },
+    {
+      "id": "layering",
+      "title": "分层解耦",
+      "summary": "Controller / Service / Mapper 职责、DTO-VO-Entity、接口分离 —— 代码怎么组织才不烂",
+      "tags": ["架构", "设计"],
+      "estMin": 80,
+      "lesson": "lessons/04-layering.md",
+      "quiz": "quiz/04-layering.json",
+      "prereq": ["java-engineering/springboot", "mybatis"],
+      "nodes": [
+        { "id": "three-layer", "title": "三层职责边界", "key": true },
+        { "id": "dto-vo", "title": "DTO / VO / Entity 转换", "key": true },
+        { "id": "interface", "title": "接口与实现分离", "key": true },
+        { "id": "dip", "title": "依赖倒置与面向接口", "key": true },
+        { "id": "aop", "title": "AOP 处理横向关注点" },
+        { "id": "anticorruption", "title": "越层反例与重构", "key": true },
+        { "id": "package", "title": "包结构规范" }
+      ]
+    }
+  ]
+}

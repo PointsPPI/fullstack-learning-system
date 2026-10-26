@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "XMLHttpRequest 的正确使用流程（含 `readyState` 判断）是？",
+      "options": [
+        "`new XMLHttpRequest()` → `open(method, url, async)` → 设置 `onreadystatechange`/`onload` → `send(body)` → 在 `readyState === 4` 时读 `status` 与 `responseText`",
+        "`new XMLHttpRequest()` → `send()` → `open()` → 读 `responseText`",
+        "`new XMLHttpRequest()` → `open()` → 读 `responseText`，`send` 可省略",
+        "必须先用 `XMLHttpRequest.create()` 工厂方法创建实例"
+      ],
+      "answer": [0],
+      "explain": "XHR 是事件驱动的异步 API，生命周期按 `readyState` 推进：0 UNSENT（已创建未 open）、1 OPENED（已 open）、2 HEADERS_RECEIVED（响应头已收到）、3 LOADING（响应体传输中）、4 DONE（完成）。必须 `open()` 之后再 `send()`，且监听器在 `send()` 之前绑定，否则同步完成的响应可能错过事件。`onload` 在成功完成时触发（等价于 readyState 4 且无网络错误），但 `onload` 不区分 HTTP 状态码——404/500 也会进 onload，必须自己判断 `xhr.status`；失败场景走 `onerror`/`ontimeout`/`onabort`。`onreadystatechange` 是老写法，会在每个状态变化时触发，需自己判 `readyState === 4`（且 state 3 时 responseText 可能只是部分内容，不能直接当完整结果）。读取响应前要设 `responseType`（json/blob/arraybuffer），设了 json 后读 `xhr.response` 而不是 `responseText`。没有 `create()` 这种工厂，只能 `new`。",
+      "tag": "XHR 流程"
+    },
+    {
+      "type": "single",
+      "q": "下列请求中，哪些会触发 CORS 预检（OPTIONS）？\n```\nA. GET /api/list\nB. POST /api/save, Content-Type: application/json\nC. GET /api/data, X-Token: abc\nD. POST /api/form, Content-Type: application/x-www-form-urlencoded\n```",
+      "options": [
+        "B 和 C",
+        "全部四项",
+        "只有 B",
+        "B、C、D"
+      ],
+      "answer": [0],
+      "explain": "简单请求（不预检）必须同时满足：方法是 GET/HEAD/POST 之一；头字段只允许 CORS 安全列表内的（Accept、Accept-Language、Content-Language、Content-Type 及部分 Range）；Content-Type 只能是 `application/x-www-form-urlencoded`、`multipart/form-data`、`text/plain` 三者之一。所以 A（纯 GET 无自定义头）是简单请求；D 的 Content-Type 在允许列表内，也是简单请求；B 用了 `application/json`，不在允许列表，必须预检；C 带了自定义头 `X-Token`，也超出安全列表，必须预检。预检是浏览器自动发出的 OPTIONS，携带 `Access-Control-Request-Method` 与 `Access-Control-Request-Headers`，服务端必须以 `Access-Control-Allow-Methods`、`Access-Control-Allow-Headers` 明确回应，并用 `Access-Control-Max-Age` 缓存结果以减少往返。注意预检失败会直接报 CORS 错误，业务请求根本不会发出——所以『后端日志里没有这条请求』的排查结论是预检就被拒了。",
+      "tag": "CORS 预检"
+    },
+    {
+      "type": "judge",
+      "q": "同源策略由浏览器执行，是前端安全边界；服务端之间、Node 脚本、curl 发起的请求不受同源策略限制。",
+      "answer": true,
+      "explain": "同源策略（same-origin policy）是浏览器的访问控制规则，不是网络协议层的东西：它限制的是『某源下的文档/脚本能否读取另一个源的响应』。判定同源要求协议、域名、端口三者完全一致（`http://a.com` 与 `https://a.com` 不同源，`a.com` 与 `a.com:8080` 不同源，子域名 `api.a.com` 与 `a.com` 也不同源）。服务器、Node、Python、curl 没有『源』的概念，它们可以随意请求任何地址——这也是为什么『用 Postman 能通、浏览器报 CORS』：请求其实发出去了，服务端也响应了，只是浏览器因缺少正确的 `Access-Control-Allow-Origin` 而拒绝把响应交给 JS。同源策略的例外包括 `<script>`、`<img>`、`<link>`、表单提交这些『单向加载』（可以发请求/加载资源但不能读内容），以及 CORS、`postMessage`、`document.domain` 等受控放宽方式。它还顺带限制了 DOM 访问、Cookie 作用域（Domain/Path/SameSite）。",
+      "tag": "同源策略"
+    },
+    {
+      "type": "multi",
+      "q": "关于 `fetch` 与 `axios`，下列说法正确的有？",
+      "options": [
+        "`fetch` 只有在网络层失败时才 reject，HTTP 404/500 仍会 resolve，需要手动检查 `response.ok`",
+        "`axios` 默认对 4xx/5xx 状态码 reject，并内置 JSON 解析、请求/响应拦截器与超时",
+        "`fetch` 默认不携带 Cookie（跨源时 `credentials` 为 `same-origin`），跨源带 Cookie 需要显式设置 `credentials: 'include'`",
+        "`fetch` 可以通过 `signal` 配合 `AbortController` 取消请求；axios 用 `signal` 或旧版 `CancelToken`"
+      ],
+      "answer": [0, 1, 2, 3],
+      "explain": "四项都正确，这是 fetch 与 axios 的核心差异清单。fetch 遵循『网络错误才 reject』的语义：DNS 失败、断网、CORS 拦截会 reject，而 404/500 resolve 出一个 `ok === false` 的 Response，因此业务代码必须写 `if (!res.ok) throw ...`，否则会把错误响应当成功数据解析。`fetch` 返回的 body 是流，`res.json()` 只能读一次（读过再读会抛 `body used already`），要复用需 `res.clone()`。axios 基于 XHR（浏览器）/http（Node），自带状态码校验、`transformRequest/Response`、拦截器统一处理 token 与错误提示、`timeout` 配置、上传下载进度，生态更完整。两者都支持取消：fetch 用 `AbortController`（`fetch(url, { signal })`，abort 后 reject 出 `AbortError`），axios 新版本用 `signal`，老版本用 `CancelToken.source()`。跨源时 fetch 默认 `same-origin`，axios 默认 `withCredentials: false`，带 Cookie 都要显式开启，且服务端 `Access-Control-Allow-Credentials: true` 与 `Allow-Origin` 不能为 `*`。",
+      "tag": "fetch 与 axios"
+    },
+    {
+      "type": "single",
+      "q": "Cookie、Session、Token 三种会话方案，下列描述正确的是？",
+      "options": [
+        "Cookie 存在客户端、每次请求自动带上；Session 数据存服务端、靠 SessionID（通常放在 Cookie）关联；Token（如 JWT）自包含用户声明，服务端无需存储会话，但难以主动失效",
+        "Session 数据存在浏览器，Cookie 数据存在服务器",
+        "JWT 默认加密，客户端无法解析其内容",
+        "三者必须同时使用，缺一不可"
+      ],
+      "answer": [0],
+      "explain": "Cookie 是浏览器存储机制，服务端通过 `Set-Cookie` 下发，客户端后续同源请求自动携带（受 Domain/Path/SameSite/Secure 约束），容量约 4KB/条。Session 是服务端状态：登录后服务端生成 SessionID 存进 Cookie，真正的用户数据在服务端内存/Redis 里，优点是可随时在服务端销毁（踢下线），缺点是分布式部署需共享存储（粘性会话或 Redis）。JWT 是自包含令牌：`header.payload.signature` 三段 base64url，payload 里放 `sub`、`exp`、权限声明，服务端只验签不查库，因此无状态、易水平扩展——但正因为无状态，**签发后在过期前无法单方面作废**，需配合短有效期 + refresh token + 黑名单/版本号机制。JWT 的 payload 只是 base64url 编码，**不是加密**，任何人可解码（明文放敏感信息是严重错误）；签名保证的是完整性而非机密性。前端存 token 的取舍：localStorage 易受 XSS 读取，HttpOnly Cookie 防 XSS 但需防 CSRF（用 SameSite + CSRF token）。",
+      "tag": "Cookie Session Token"
+    },
+    {
+      "type": "fill",
+      "q": "用 fetch 取消请求时，需要创建 `AbortController` 实例，并把它的 `____` 属性作为 fetch 的 `signal` 传入（只填属性名）。",
+      "answer": "signal",
+      "explain": "`const c = new AbortController(); fetch(url, { signal: c.signal }); c.abort();`。调用 abort 后，信号变为 aborted，fetch 的 Promise 以 `DOMException: The user aborted a request`（name 为 `AbortError`）reject。工程要点：(1) 要区分『用户主动取消』与『真正的失败』，catch 里判 `err.name === 'AbortError'` 并静默返回，否则会误弹错误提示；(2) 一次 abort 后该 signal 永久失效，重试要新建 controller；(3) 同一个 signal 可以传给多个请求（如表单页所有请求）实现批量取消；(4) 组件卸载时 abort，避免已卸载组件收到响应后 setState 报错或造成内存泄漏；(5) 也可以用它做超时：`setTimeout(() => c.abort(), ms)`，或用 `AbortSignal.timeout(ms)`（较新 API）。axios 侧同理，`signal` 生效且优先级高于 `timeout`。",
+      "tag": "超时与取消"
+    },
+    {
+      "type": "single",
+      "q": "使用 `FormData` 上传文件时，下列做法正确的是？",
+      "options": [
+        "`fd.append('file', file)` 后直接把 FormData 作为 body 发送，不要手动设置 `Content-Type`，让浏览器自动生成带 `boundary` 的 `multipart/form-data`",
+        "必须手动设置 `Content-Type: multipart/form-data`，否则服务端解析不了",
+        "必须把文件转成 base64 再用 JSON 发送才能上传",
+        "`FormData` 只能 append 字符串，文件要用 `setFile` 方法"
+      ],
+      "answer": [0],
+      "explain": "multipart 的 Content-Type 必须包含随机生成的 `boundary` 分隔符，形如 `multipart/form-data; boundary=----WebKitFormBoundaryXxx`。手写这个头会丢掉 boundary，服务端无法切分字段——这是『上传接口一直报 400，说缺少文件字段』的最常见原因。正确做法：传 FormData 给 fetch/axios 时不要设 Content-Type，浏览器/XHR 会自动补全（axios 会识别 FormData 并移除你预设的头）。`append` 可以传 Blob/File 并指定文件名：`fd.append('file', blob, 'a.png')`；也可以 append 多个同名 key 形成数组。其他要点：fetch 上传大文件没有原生进度事件（需用 XHR 或 ReadableStream），axios 用 `onUploadProgress`；上传大文件常配合分片（slice + 并发 + 断点续传）与秒传（先算 hash 查服务端）；不要用 base64 传大文件，体积会膨胀约 33% 且占用内存。",
+      "tag": "文件上传"
+    },
+    {
+      "type": "judge",
+      "q": "服务端返回 `Access-Control-Allow-Origin: *` 且 `Access-Control-Allow-Credentials: true` 时，浏览器会允许跨源携带 Cookie 的请求。",
+      "answer": false,
+      "explain": "这是 CORS 规范里的一条硬性互斥规则：当请求带凭据（Cookie、HTTP 认证、TLS 客户端证书）时，`Access-Control-Allow-Origin` **不能是通配符 `*`**，必须是具体的源（如 `https://app.example.com`），并且响应还要带 `Access-Control-Allow-Credentials: true`，前端请求侧也要 `credentials: 'include'`（axios 为 `withCredentials: true`）。三者缺一浏览器就丢弃响应并报 CORS 错误。若需支持多个来源，服务端应读取请求的 `Origin`，在允许列表内回写该具体值，并加上 `Vary: Origin` 以正确配合缓存（否则 CDN 可能把 A 源的响应缓存给 B 源）。同理，预检响应也必须带 `Allow-Credentials`，且 `Allow-Headers`/`Allow-Methods` 不能写 `*`（带凭据时通配符在部分头上有额外限制）。这道题也是排查『登录接口跨域失败、但普通接口正常』的定位点。",
+      "tag": "CORS 预检"
+    },
+    {
+      "type": "single",
+      "q": "下面这段 fetch 代码的问题是什么？\n```js\nconst res = await fetch('/api/user');\nconst data = await res.json();\nconsole.log(data.name);\n```\n（假设后端在未登录时返回 401 且响应体为 `{\"msg\":\"未登录\"}`）",
+      "options": [
+        "fetch 对 401 不会 reject，`res.json()` 会正常解析出 `{msg:'未登录'}`，于是 `data.name` 为 undefined，错误被静默吞掉",
+        "fetch 会因 401 抛异常，await 直接中断",
+        "`res.json()` 会因状态码非 200 抛错",
+        "代码会在 `await fetch` 处一直挂起"
+      ],
+      "answer": [0],
+      "explain": "fetch 的 Promise 只在网络层失败（断网、DNS 失败、CORS 拦截、abort）时 reject；HTTP 状态码不属于网络错误，401/403/500 都会 resolve。所以上面代码不会抛错，`res.json()` 正常解析错误体，`data.name` 得到 undefined，页面表现为『数据莫名空白』而控制台无报错——这是线上事故的常见形态。正确写法是显式校验：`if (!res.ok) throw new Error(\\`HTTP ${res.status}\\`)`，或在统一封装的 request 层拦截 401 跳登录、403 提示无权限。同时要注意 `res.json()` 对空响应体（204 或 200 无 body）会抛 `Unexpected end of JSON input`，需先判 `res.status === 204` 或读 `res.text()` 再决定是否解析。axios 在这点上更省心（默认 4xx/5xx reject），但也要配拦截器统一处理。",
+      "tag": "fetch 与 axios"
+    },
+    {
+      "type": "multi",
+      "q": "关于 CSRF 与防护，下列说法正确的有？",
+      "options": [
+        "CSRF 利用的是浏览器自动携带 Cookie 的特性，攻击者无需读取响应内容即可完成状态变更请求",
+        "`SameSite=Lax` 能阻止大部分跨站 POST 携带 Cookie，是成本较低的第一道防线",
+        "CSRF Token 需要服务端校验，且不能只放在 Cookie 里（否则攻击者可借助自动携带绕过）",
+        "设置 `Access-Control-Allow-Origin: *` 可以防止 CSRF"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "CSRF 的本质是『借用用户的已登录身份』：攻击者在第三方页面构造表单或图片请求指向目标站，浏览器按同源规则自动附带目标站的 Cookie，服务端看到合法 Cookie 就执行了操作。防御要点：(1) `SameSite`——`Lax` 允许顶级导航的 GET 带 Cookie，但跨站 POST/iframe 不带，能挡掉绝大多数场景；`Strict` 最严但影响从外链跳回的登录态；`None` 必须配 `Secure`。(2) CSRF Token（同步令牌或双提交 Cookie）：服务端下发随机 token，前端放在请求头或表单字段，服务端校验——关键是 token 不能只存在 Cookie 里，必须让 JS 显式读取后写入自定义头/字段，因为跨站页面读不到目标站 Cookie，也无法设置自定义头（后者会触发预检）。(3) 校验 `Origin`/`Referer`。(4) 高危操作二次验证（密码、短信）。CORS 不是 CSRF 防御手段：CORS 限制的是『能否读取响应』，而 CSRF 不需要读响应就能造成副作用；`Allow-Origin: *` 只放宽读权限，对 CSRF 毫无帮助，甚至可能扩大信息泄露面。",
+      "tag": "CSRF 与 Cookie 安全"
+    },
+    {
+      "type": "single",
+      "q": "关于 HTTP 缓存对 Ajax 请求的影响，下列描述正确的是？",
+      "options": [
+        "GET 请求可能命中浏览器缓存而返回旧数据；需要强一致时用 `cache: 'no-store'`（fetch）或加时间戳/版本参数，服务端也可用 `Cache-Control: no-cache` 要求协商验证",
+        "所有 Ajax 请求都默认不走缓存，无需关心",
+        "只有 POST 请求会被缓存",
+        "`Cache-Control: no-store` 表示允许缓存但每次都要验证"
+      ],
+      "answer": [0],
+      "explain": "浏览器缓存遵循 HTTP 语义：GET/HEAD 可缓存，POST 一般不缓存。命中强缓存（`Cache-Control: max-age`、`Expires`）时浏览器直接返回本地副本，请求根本不发出——这在 CI/CD 后表现为『改了代码但页面数据还是老的』，或在 IE 时代表现为『GET 请求被缓存导致下拉框数据不更新』（老办法是加 `?_t=Date.now()`）。`no-store` 是完全禁止存储；`no-cache` 是允许存储但每次必须向服务端验证（配合 `ETag`/`If-None-Match`，命中则 304，省流量但仍有往返）；`must-revalidate` 过期后不得使用陈旧副本。前端侧 fetch 有 `cache: 'no-store' | 'no-cache' | 'reload' | 'force-cache'`，axios 在浏览器端可加请求头 `Cache-Control: no-cache` 或参数。工程建议：静态资源用内容哈希文件名 + 长缓存，接口用 `no-store` 或短缓存，避免缓存与业务一致性打架。",
+      "tag": "HTTP 缓存"
+    },
+    {
+      "type": "single",
+      "q": "要实现『同时发 100 个请求但最多 5 个并发，全部完成后统一处理』，下列思路正确的是？",
+      "options": [
+        "用并发池：维护一个大小为 5 的 worker 队列，每个 worker 从任务数组中不断取下一条执行，全部 worker 结束后 `Promise.all` 汇总；不能直接用 `Promise.all(requests)`，那会一次性全部发出",
+        "直接 `Promise.all` 就能限制并发数为 5",
+        "用 `for` 循环加 `await` 逐个串行执行，即实现了 5 并发",
+        "用 `Promise.race` 就能自动实现并发限制"
+      ],
+      "answer": [0],
+      "explain": "`Promise.all` 只是等待全部完成，它不负责限流——数组里每个 Promise 在创建时就已经发出了。串行 `for + await` 并发度是 1。`Promise.race` 返回最先落定的那个，用于『超时竞速』或『有结果就先处理』，同样不提供限流。正确做法是并发池（也叫任务队列/信号量）：典型实现是 `const workers = Array.from({length: 5}, async () => { while (queue.length) { const t = queue.shift(); results.push(await t()); } }); await Promise.all(workers)`，或用 `p-limit`/`limit` 这类库；注意要 `catch` 住单个任务失败以免一个 reject 拖垮整个 worker（用 `Promise.allSettled` 会更稳）。为什么需要限流：浏览器对同域 HTTP/1.1 有 6 个连接上限，超出的请求排队；服务端也常有 QPS/并发限制，一次性发 100 个会触发 429 甚至被打挂。真实场景（批量导入、批量下载、图片上传）都应使用并发池。",
+      "tag": "并发控制"
+    }
+  ]
+}

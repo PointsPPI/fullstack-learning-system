@@ -1,0 +1,157 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "JDBC 查询的标准六步顺序是？",
+      "options": [
+        "加载驱动 → 获取 Connection → 创建 Statement/PreparedStatement → 执行并得到 ResultSet → 遍历结果 → 关闭资源",
+        "创建 Connection → 加载驱动 → 执行 SQL → 关闭 → 提交 → 回滚",
+        "加载驱动 → 开启事务 → 执行 → commit → 关闭 → 打印日志",
+        "获取 DataSource → 执行 SQL → 关闭"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "Class.forName(\"com.mysql.cj.jdbc.Driver\") 在 JDBC 4.0 后可省略（SPI 自动发现 META-INF/services/java.sql.Driver），但显式加载仍见于老代码。\n关闭顺序必须与打开顺序相反：ResultSet → Statement → Connection，并放在 finally 或 try-with-resources 中。\nConnection 关闭会隐式关闭其下所有 Statement 和 ResultSet，但仍建议逐层显式关闭，连接池场景下尤其重要（return 到池而不是真关闭）。",
+      "tag": "JDBC六步流程"
+    },
+    {
+      "type": "multi",
+      "q": "MySQL 8 的 JDBC URL 中，下列哪些参数是常见且必须注意的？",
+      "options": [
+        "jdbc:mysql://host:3306/db?serverTimezone=Asia/Shanghai",
+        "useSSL=false&allowPublicKeyRetrieval=true（本地开发常见）",
+        "characterEncoding=utf8&useUnicode=true",
+        "jdbc:oracle:thin:@host:1521:orcl 也是 MySQL 的合法写法"
+      ],
+      "answer": [
+        0,
+        1,
+        2
+      ],
+      "explain": "MySQL 8 驱动类为 com.mysql.cj.jdbc.Driver（老版 com.mysql.jdbc.Driver 已废弃，会提示 Loading class ... deprecated）。\nserverTimezone 缺失会报 The server time zone value ... is unrecognized；allowPublicKeyRetrieval=true 用于 caching_sha2_password 认证在无 SSL 时取公钥。\n生产建议：rewriteBatchedStatements=true（批量插入性能关键）、useSSL=true、不使用 root 账号。",
+      "tag": "Driver与URL"
+    },
+    {
+      "type": "single",
+      "q": "PreparedStatement 相比 Statement 的核心优势是？",
+      "options": [
+        "预编译并参数化，天然防 SQL 注入，且可复用执行计划、批量执行更快",
+        "API 更短，少写几行代码",
+        "可以执行任意 DDL",
+        "不需要关闭"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "Statement 只能拼字符串，输入 ' OR 1=1 -- 就能注入；PreparedStatement 的 SQL 结构先编译，? 只绑数据。\n性能上：同一 SQL 多次执行可复用执行计划；服务端开启 cachePrepStmts 后效果更明显；addBatch/executeBatch 配合 rewriteBatchedStatements=true 能把多条 INSERT 合成多值插入。\n限制：? 只能绑值，不能绑表名/列名/ORDER BY 字段 —— 这些位置必须白名单校验。",
+      "tag": "PreparedStatement"
+    },
+    {
+      "type": "single",
+      "q": "关于 JDBC 事务，正确的写法是？",
+      "options": [
+        "conn.setAutoCommit(false) → 执行多条 SQL → conn.commit()，异常时 conn.rollback()，最后恢复 autoCommit",
+        "conn.setAutoCommit(true) 后再 commit()",
+        "直接执行 SQL，JDBC 会自动回滚失败的语句",
+        "在 ResultSet 上调用 rollback()"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "JDBC 默认 autoCommit=true，即每条语句自成一个事务，无法跨语句回滚。必须显式 setAutoCommit(false)。\n规范写法：try { ...; commit(); } catch (SQLException e) { rollback(); throw ...; } finally { 恢复 autoCommit 并 close（连接池会 reset） }。\n注意：连接池（HikariCP）归还连接时会重置 autoCommit，但业务代码里主动恢复是好习惯；嵌套调用要小心事务传播（Spring 用 TransactionSynchronizationManager 绑定连接到线程）。",
+      "tag": "事务与回滚"
+    },
+    {
+      "type": "single",
+      "q": "循环插入 1 万条数据，性能最好的做法是？",
+      "options": [
+        "addBatch 累积后用 executeBatch 批量提交，并开启 rewriteBatchedStatements=true",
+        "循环里每条都新建 Connection 执行",
+        "每条 SQL 都 commit 一次",
+        "用 Statement 拼 1 万条 SQL 一次 execute"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "逐条 execute 的瓶颈在三次网络往返 + 每次事务提交的 fsync。批处理把多条合并发送，配合 rewriteBatchedStatements=true 让驱动改写成 INSERT INTO t VALUES (...),(...),(...) 的多值插入，性能可提升一个数量级。\n要点：批量大小 500~1000 一批；关闭 autoCommit 手动提交；JVM 参数 -DreWriteBatchedInserts 等驱动选项；MySQL 需 max_allowed_packet 足够大。\n超大批次反而会撑爆日志与锁，需要分批。",
+      "tag": "批处理"
+    },
+    {
+      "type": "multi",
+      "q": "关于数据库连接池（HikariCP / Druid），正确的有？",
+      "options": [
+        "connection.close() 在池化连接上是“归还”，不是真正断开物理连接",
+        "maximumPoolSize 不是越大越好，需匹配数据库最大连接数与业务并发",
+        "必须在使用后关闭（归还）连接，否则池耗尽会出现等待超时",
+        "连接池可以完全替代事务管理"
+      ],
+      "answer": [
+        0,
+        1,
+        2
+      ],
+      "explain": "HikariCP 的 close() 是代理对象把连接 return 到池。忘记关闭会导致 “Connection is not available, request timed out after 30000ms” 的经典故障。\n池大小经验：connections ≈ (核心数 × 2) + 有效磁盘数，盲目调大反而增加上下文切换与数据库压力；MySQL max_connections 是硬上限。\n连接池只管连接复用，事务边界仍由业务（Spring @Transactional / JDBC autoCommit）控制。",
+      "tag": "连接池"
+    },
+    {
+      "type": "single",
+      "q": "下列资源关闭写法最正确的是？",
+      "options": [
+        "try (Connection c = ds.getConnection(); PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) { ... }",
+        "在 try 里 close，catch 里不 close",
+        "只 close Connection，其余交给 GC",
+        "在 finalize 里 close"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "try-with-resources（Java 7+）会自动按“逆序”关闭并抑制异常，代码最短也最安全。\n传统写法中 close 必须在 finally；catch 里 close 会在异常路径泄漏。\n依赖 GC/finalize 是反模式：finalize 执行时机不确定（Java 9+ 已废弃），连接池场景下会直接把池耗尽。",
+      "tag": "资源关闭"
+    },
+    {
+      "type": "judge",
+      "q": "ResultSet 默认是可滚动、可更新的，所以可以直接调用 rs.previous() 回溯上一行、用 rs.updateString() 回写数据库。",
+      "answer": false,
+      "explain": "默认是 TYPE_FORWARD_ONLY + CONCUR_READ_ONLY：只能向后遍历，且只读。调用 rs.previous() 或 rs.updateXxx() 会抛异常（依驱动实现，常见为 SQLException / UnsupportedOperationException）。\n要滚动或回写必须显式指定：createStatement(int resultSetType, int resultSetConcurrency)，类型为 TYPE_SCROLL_INSENSITIVE（可滚动，但不反映他人修改）或 TYPE_SCROLL_SENSITIVE，并发为 CONCUR_UPDATABLE。\n实践中极少用可更新结果集，直接执行 UPDATE 更清晰可控。",
+      "tag": "ResultSet"
+    },
+    {
+      "type": "single",
+      "q": "用 ResultSet 做 ORM 映射时，rs.getLong(\"id\") 在列值为 NULL 时会返回什么？",
+      "options": [
+        "0，且 wasNull() 返回 true 可用于判断",
+        "抛 NullPointerException",
+        "返回 null",
+        "抛 SQLException"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "getLong/getInt 等基本类型返回 0，必须紧接着调 rs.wasNull() 判断上一列是否为 SQL NULL；否则会把 NULL 误当成 0 存进数据库。\n用包装类型 rs.getObject(\"id\", Long.class)（JDBC 4.1+）可直接得到 null，更安全。\n列名大小写与别名要一致；用列序号（getString(1)）性能略好但可读性差。",
+      "tag": "结果集映射"
+    },
+    {
+      "type": "single",
+      "q": "DAO 模式的核心目的是？",
+      "options": [
+        "把数据访问细节（SQL、JDBC API）封装在 DAO 层，Service 只面向接口编程，便于替换实现与单测 Mock",
+        "把 SQL 写在 Controller 里以减少类数量",
+        "让每个实体类自带 save/update 方法（充血模型的唯一做法）",
+        "统一所有异常为 SQLException 抛出到前端"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "典型的 UserDao 接口 + JdbcUserDao/MyBatisUserDao 实现，Service 依赖接口而非实现 —— 这是依赖倒置在持久层的落地。\n收益：换 ORM 不改 Service；单测注入 Mock DAO；SQL 集中便于审查与优化。\n注意：DAO 不应吞掉 SQLException，应转成业务可理解的自定义异常（如 DataAccessException）再上抛，避免泄漏技术细节到 Controller。",
+      "tag": "DAO模式"
+    },
+    {
+      "type": "fill",
+      "q": "MySQL 8 的 JDBC 驱动类全名是 com.mysql.cj.jdbc.______（填类名最后一段）。",
+      "answer": "Driver",
+      "explain": "MySQL 8：com.mysql.cj.jdbc.Driver；MySQL 5.x：com.mysql.jdbc.Driver（已废弃，仍能用但会打印弃用警告）。\nJDBC 4.0 起通过 SPI 自动发现驱动（jar 内 META-INF/services/java.sql.Driver），Class.forName 可以省略；写显式加载在老代码与某些容器（如旧版 Tomcat 类加载器隔离）中更稳。\n8.x 常见报错：驱动类找不到说明依赖坐标写错（应为 com.mysql:mysql-connector-j，旧坐标 mysql:mysql-connector-java 已停止维护）；时区报错加 serverTimezone。",
+      "tag": "驱动类加载"
+    }
+  ]
+}

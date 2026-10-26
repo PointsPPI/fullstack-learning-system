@@ -1,0 +1,107 @@
+{
+  "id": "web-frontend",
+  "title": "前端基础",
+  "version": "1.0.0",
+  "color": "#4f7cff",
+  "description": "HTML / CSS / JavaScript / Vue / Ajax —— 从静态页面到动态交互，再到与后端通信",
+  "stages": [
+    { "title": "阶段一 · 结构与样式", "topics": ["html", "css"] },
+    { "title": "阶段二 · 行为与框架", "topics": ["javascript", "vue"] },
+    { "title": "阶段三 · 前后端通信", "topics": ["ajax"] }
+  ],
+  "topics": [
+    {
+      "id": "html",
+      "title": "HTML 结构",
+      "summary": "文档骨架、语义化标签、表单与可访问性 —— 网页的骨架",
+      "tags": ["基础", "结构"],
+      "estMin": 45,
+      "lesson": "lessons/01-html.md",
+      "quiz": "quiz/01-html.json",
+      "nodes": [
+        { "id": "skeleton", "title": "文档骨架与 DOCTYPE", "key": true },
+        { "id": "semantic", "title": "语义化标签", "key": true },
+        { "id": "form", "title": "表单与输入校验" },
+        { "id": "a11y", "title": "可访问性（aria / label）" },
+        { "id": "meta", "title": "meta viewport 与 SEO" }
+      ]
+    },
+    {
+      "id": "css",
+      "title": "CSS 样式与布局",
+      "summary": "盒模型、选择器优先级、Flex、Grid、定位、响应式 —— 网页的血肉",
+      "tags": ["基础", "布局"],
+      "estMin": 90,
+      "lesson": "lessons/02-css.md",
+      "quiz": "quiz/02-css.json",
+      "prereq": ["html"],
+      "nodes": [
+        { "id": "box", "title": "盒模型与 box-sizing", "key": true },
+        { "id": "selector", "title": "选择器与优先级", "key": true },
+        { "id": "flex", "title": "Flex 布局", "key": true },
+        { "id": "grid", "title": "Grid 布局", "key": true },
+        { "id": "position", "title": "定位与层叠上下文" },
+        { "id": "responsive", "title": "媒体查询与响应式" },
+        { "id": "pitfall", "title": "常见布局难题与坑点" }
+      ]
+    },
+    {
+      "id": "javascript",
+      "title": "JavaScript 核心",
+      "summary": "作用域、闭包、this、原型链、事件循环、异步、DOM —— 网页的行为",
+      "tags": ["核心", "语言"],
+      "estMin": 120,
+      "lesson": "lessons/03-javascript.md",
+      "quiz": "quiz/03-javascript.json",
+      "prereq": ["html", "css"],
+      "nodes": [
+        { "id": "type", "title": "类型与隐式转换", "key": true },
+        { "id": "scope", "title": "作用域链与闭包", "key": true },
+        { "id": "this", "title": "this 绑定四种规则", "key": true },
+        { "id": "proto", "title": "原型链与 class" },
+        { "id": "eventloop", "title": "事件循环：宏任务与微任务", "key": true },
+        { "id": "promise", "title": "Promise 与 async/await", "key": true },
+        { "id": "dom", "title": "DOM 操作与事件委托" },
+        { "id": "module", "title": "模块化 ESM" },
+        { "id": "copy", "title": "深浅拷贝与防抖节流" }
+      ]
+    },
+    {
+      "id": "vue",
+      "title": "Vue 3 框架",
+      "summary": "响应式原理、模板语法、组件通信、组合式 API —— 数据驱动视图",
+      "tags": ["框架", "进阶"],
+      "estMin": 100,
+      "lesson": "lessons/04-vue.md",
+      "quiz": "quiz/04-vue.json",
+      "prereq": ["javascript"],
+      "nodes": [
+        { "id": "reactive", "title": "响应式原理（Proxy）", "key": true },
+        { "id": "template", "title": "模板语法与指令", "key": true },
+        { "id": "computed", "title": "computed vs watch vs watchEffect", "key": true },
+        { "id": "component", "title": "组件与 props / emit", "key": true },
+        { "id": "lifecycle", "title": "生命周期与 onMounted" },
+        { "id": "composition", "title": "组合式 API 与逻辑复用" },
+        { "id": "router", "title": "路由与状态管理概念" }
+      ]
+    },
+    {
+      "id": "ajax",
+      "title": "Ajax 与接口通信",
+      "summary": "XHR、fetch、跨域、鉴权、错误处理 —— 前端如何跟后端说话",
+      "tags": ["通信", "实战"],
+      "estMin": 70,
+      "lesson": "lessons/05-ajax.md",
+      "quiz": "quiz/05-ajax.json",
+      "prereq": ["javascript"],
+      "nodes": [
+        { "id": "xhr", "title": "XHR 工作流程", "key": true },
+        { "id": "fetch", "title": "fetch 与 axios 封装", "key": true },
+        { "id": "cors", "title": "同源策略与跨域三解法", "key": true },
+        { "id": "cookie", "title": "Cookie / Session / Token" },
+        { "id": "error", "title": "错误处理、超时、取消请求" },
+        { "id": "upload", "title": "表单提交与文件上传" }
+      ]
+    }
+  ]
+}

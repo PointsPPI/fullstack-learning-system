@@ -1,0 +1,164 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "标准三层架构中，Controller 的职责边界是？",
+      "options": [
+        "接收 HTTP 请求、参数校验与转换、调用 Service、把结果组装成响应，不写业务规则与 SQL",
+        "直接操作数据库完成业务",
+        "只负责记录日志",
+        "承担全部事务与业务校验"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "Controller：协议适配层（HTTP/参数/校验/响应码），薄。\nService：业务规则、事务边界、跨领域编排，厚。\nMapper/DAO：SQL 与持久化细节，只做数据存取。\nController 里写业务判断会导致“换个入口（定时任务/消息/MQ）就要复制一遍逻辑”，这是最典型的分层破坏。参数校验可以放 Controller（@Valid + DTO 注解），但业务规则校验（如余额是否足够）必须在 Service。",
+      "tag": "三层职责"
+    },
+    {
+      "type": "multi",
+      "q": "关于 DTO / VO / Entity（DO）的职责，正确的有？",
+      "options": [
+        "DTO 用于接收外部输入（如 CreateUserDTO），承载入参校验注解",
+        "VO 用于对外输出，可按前端需要裁剪/合并字段，避免暴露敏感信息",
+        "Entity 与数据库表结构一一对应，不应直接把 Entity 返回给前端",
+        "为了少写类，Controller 直接返回 Entity 是最佳实践"
+      ],
+      "answer": [
+        0,
+        1,
+        2
+      ],
+      "explain": "直接返回 Entity 的三个代价：① 泄漏表结构（别人据此推断你的库设计）；② 敏感字段（password、idCard、内部状态位）容易漏删；③ 表结构变更直接影响 API 契约，无法独立演进。\n常见分层：Controller↔DTO、Service↔BO/领域对象、Mapper↔Entity/DO、Controller→前端↔VO。转换用 MapStruct（编译期生成，无反射开销）优于 BeanUtils（反射、性能与可读性都差）。",
+      "tag": "DTO/VO/Entity"
+    },
+    {
+      "type": "single",
+      "q": "“接口与实现分离 + 面向接口注入”带来的最直接收益是？",
+      "options": [
+        "调用方依赖抽象而非具体实现，可替换实现（多数据源/多支付渠道）、可用 Mock 做单测",
+        "减少编译时间",
+        "可以让方法变成静态的",
+        "避免使用 Spring"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "典型：PayService 接口 + AlipayServiceImpl / WxPayServiceImpl，Service 层注入 PayService，用 @Qualifier 或策略工厂选择。\n测试时注入 Mock 实现，无需起数据库。\n注意不要为每个类都硬造接口（“为了接口而接口”）：只有在需要多实现、需要跨模块解耦、或作为对外 SPI 时才抽接口，否则增加无谓的跳转成本。",
+      "tag": "接口与实现分离"
+    },
+    {
+      "type": "judge",
+      "q": "分层架构里依赖方向可以双向：Mapper 层为了方便也可以直接调用 Service 层的业务方法。",
+      "answer": false,
+      "explain": "分层的核心约束是“依赖单向”：上层可调用下层，下层绝不能反向依赖上层（那会形成环，编译期就可能循环引用，运行时难以替换与测试）。\nDIP（依赖倒置）的落地方式是让抽象定义在高层：Service 声明 UserRepository 接口，MyBatis 实现放在低层 —— 这样低层依赖的是高层定义的抽象，而不反过来。\n判定分层是否被破坏，看三点：事务边界是否都在 Service、SQL 是否都在 Mapper、业务规则是否都在 Service。",
+      "tag": "依赖倒置"
+    },
+    {
+      "type": "single",
+      "q": "日志、权限校验、性能监控、幂等这类“横向关注点”，最适合放在？",
+      "options": [
+        "AOP 切面（或拦截器/过滤器）统一处理，避免散落在每个业务方法里",
+        "每个 Service 方法里各写一遍",
+        "前端处理",
+        "数据库触发器"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "横向关注点（cross-cutting concerns）与业务正交，用 AOP 织入可做到“业务代码零污染”。\n选型：与 HTTP 协议相关（编码、跨域、请求体缓存）用 Filter；与 Handler/Controller 语义相关（登录校验、权限、统一响应）用 Interceptor；与业务方法相关（事务、日志、缓存、限流、幂等）用 AOP。\n注意 AOP 只对经代理的外部调用生效（同类自调用失效），且切点表达式过宽会误伤（如切到 Controller 导致响应被二次包装）。",
+      "tag": "AOP横向关注点"
+    },
+    {
+      "type": "single",
+      "q": "下列包结构组织方式中，最推荐用于中大型业务系统的是？",
+      "options": [
+        "按业务域分包（order/、user/、payment/），每包内再分 controller/service/mapper",
+        "按技术层分包（所有 controller 一个包，所有 service 一个包）",
+        "所有类放同一个包",
+        "按开发人员名字分包"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "按技术分层（package by layer）在小项目清爽，但规模一大就出现“改一个需求要横跨 4 个包、包内几十个不相关类”。\n按业务域（package by feature）把高内聚的东西放在一起，边界清晰，未来可平滑拆成微服务。\n实践折中：顶层按域，域内按层；公共能力放 common/infrastructure。",
+      "tag": "包结构"
+    },
+    {
+      "type": "single",
+      "q": "“贫血模型”指的是？",
+      "options": [
+        "实体类只有 getter/setter 数据字段，没有行为；所有业务逻辑都堆在 Service 里",
+        "实体类里没有任何字段",
+        "Service 层没有接口",
+        "数据库表没有主键"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "贫血模型（Anemic Domain Model，Martin Fowler 提出的反模式称谓）下，Order 只是个数据袋，calculateTotal()、canCancel() 全在 OrderService 里，规则一多就散落、重复、难保证一致性。\n充血模型把与自身状态强相关的行为放进实体（Order.cancel() 内部校验状态机），Service 只做编排与事务。\n现实取舍：CRUD 为主的系统用贫血模型完全够用，别为了“领域驱动”过度设计；复杂业务（订单、结算、风控）才值得充血 + 聚合根。",
+      "tag": "贫血模型"
+    },
+    {
+      "type": "single",
+      "q": "下列哪个是典型的“越层调用”反例？",
+      "options": [
+        "Controller 直接注入并调用 Mapper 执行 SQL，绕过 Service 的业务校验与事务",
+        "Controller 调用 Service，Service 调用 Mapper",
+        "Service 通过接口依赖 Repository",
+        "Mapper 只做数据访问"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "越层的代价：事务边界丢失（Controller 无 @Transactional，多条写操作不在同一事务）、业务规则被绕过（库存校验、权限判断）、逻辑重复（换个入口就要再写一遍）。\n其他常见越层：Mapper 里写业务判断、Service 直接返回 Entity 给 Controller（跳过 VO 转换也不算致命，但会累积技术债）、工具类反向依赖 Service。\n判定标准很简单：这一层的代码，是否只依赖“更内层或同层的抽象”。",
+      "tag": "越层反例"
+    },
+    {
+      "type": "multi",
+      "q": "把业务逻辑写在 Controller 里会带来哪些问题？",
+      "options": [
+        "无法复用：定时任务、MQ 消费者、RPC 入口需要重复实现同一逻辑",
+        "事务难管理：Controller 上的事务边界与 HTTP 请求生命周期耦合",
+        "单元测试变重：必须构造 MockMvc 才能测业务规则",
+        "会让编译速度明显变慢"
+      ],
+      "answer": [
+        0,
+        1,
+        2
+      ],
+      "explain": "Controller 层的测试需要 Web 上下文（MockMvc / 起容器），而纯 Service 单测只需 Mock 依赖，快几个数量级。\n事务：@Transactional 应加在 Service 的 public 方法上，Controller 加事务会把参数解析、视图渲染都圈进事务，连接占用时间变长。\n编译速度与分层无关。",
+      "tag": "分层与可测试性"
+    },
+    {
+      "type": "single",
+      "q": "Service 之间相互注入调用（OrderService 注入 UserService）时，最需要注意的是？",
+      "options": [
+        "事务传播行为与循环依赖，优先按“单向依赖”设计，必要时用事件解耦",
+        "必须都用字段注入",
+        "Service 之间不允许互相调用",
+        "必须放在同一个包下"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "互相调用容易形成环（A↔B），字段注入能被三级缓存兜住但设计已经变坏；构造器注入则直接启动失败。\n事务层面：内层方法默认 REQUIRED 会加入外层事务，若内层抛异常被捕获，外层仍可能提交；需要独立事务用 REQUIRES_NEW（注意自调用失效）。\n解耦手段：领域事件（ApplicationEventPublisher + @TransactionalEventListener）、把共用逻辑下沉到第三个 Service、或抽成领域服务。",
+      "tag": "Service协作与循环依赖"
+    },
+    {
+      "type": "judge",
+      "q": "在分层架构中，Mapper（DAO）层可以承担“余额不足则拒绝”这类业务规则判断，因为离 SQL 最近、写起来最快。",
+      "answer": false,
+      "explain": "把业务规则写进 SQL 或 Mapper 会导致：规则不可单测、跨数据库不兼容、复用困难、异常语义模糊（返回 0 行到底是“不存在”还是“不允许”）。\nMapper 的合理职责：CRUD、条件查询、批量操作、必要的 SQL 优化；复杂统计可以放 Mapper，但“是否允许”这类判断应回到 Service/领域对象。\n例外：为性能把部分判断下推到 SQL（如 UPDATE ... WHERE stock >= 1 的乐观扣减）是合理的，但要注释清楚这是“并发控制手段”，并在 Service 检查影响行数。",
+      "tag": "Mapper职责边界"
+    },
+    {
+      "type": "fill",
+      "q": "Controller 只做协议适配、Service 承载业务与事务、Mapper 只做数据存取，这种“每层只依赖内层抽象”的结构叫 ______ 架构（填两个字的中文）。",
+      "answer": "分层",
+      "explain": "分层的本质是“依赖方向单向、职责不重叠”：上层可以调用下层，下层不得反向依赖上层。\n判定一次改动是否破坏了分层，看三点：事务边界是否都在 Service、SQL 是否都在 Mapper、业务规则是否都在 Service。\n注意分层不等于“必须四层”：简单 CRUD 可以省略 DTO/VO，小项目 Mapper 也可直接由 Service 调；关键是依赖方向别乱。",
+      "tag": "分层架构总览"
+    }
+  ]
+}

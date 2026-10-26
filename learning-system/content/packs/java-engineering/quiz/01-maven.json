@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "Maven 坐标（GAV）中的 V 表示什么？",
+      "options": [
+        "groupId，组织或公司标识",
+        "artifactId，构件名",
+        "version，版本号",
+        "packaging，打包类型"
+      ],
+      "answer": [2],
+      "explain": "GAV = groupId + artifactId + version，三者唯一确定一个构件，并直接决定本地仓库路径。\n例如 <dependency><groupId>org.springframework</groupId><artifactId>spring-core</artifactId><version>6.1.0</version></dependency> 对应 ~/.m2/repository/org/springframework/spring-core/6.1.0/spring-core-6.1.0.jar。\npackaging 不属于坐标，它只决定产物形态（jar / war / pom）。",
+      "tag": "GAV坐标"
+    },
+    {
+      "type": "judge",
+      "q": "<scope> 不写时默认是 provided，所以该依赖会和 servlet-api 一样在运行时不可见。",
+      "answer": false,
+      "explain": "不写 scope 时默认是 compile：参与 compile / test / runtime 三条 classpath，并且可传递。\nprovided 必须显式声明：编译+测试可见、运行不可见、不传递、不打入包，典型如 servlet-api。\nruntime：编译不可见、测试与运行可见，典型如 JDBC 驱动；test：仅测试可见、不传递，典型如 junit。",
+      "tag": "scope"
+    },
+    {
+      "type": "multi",
+      "q": "下列哪些 scope 的依赖会出现在“运行时”的 classpath 中？",
+      "options": [
+        "compile",
+        "provided",
+        "runtime",
+        "test"
+      ],
+      "answer": [0, 2],
+      "explain": "运行时 classpath = compile + runtime。\nprovided 的语义是“容器/运行环境已经提供”，所以编译能过、打包不带，例如 <scope>provided</scope> 的 servlet-api，war 包里没有它，靠 Tomcat 提供。\ntest 只在 test classpath，打包和运行时都不可见。",
+      "tag": "scope与classpath"
+    },
+    {
+      "type": "single",
+      "q": "A 依赖 B、B 依赖 C(1.0)；A 又依赖 D、D 依赖 E、E 依赖 C(2.0)。Maven 最终会用哪个 C？",
+      "options": [
+        "C 1.0，最短路径优先",
+        "C 2.0，版本高者优先",
+        "构建报错，必须手动排除",
+        "随机选一个"
+      ],
+      "answer": [0],
+      "explain": "Maven 的依赖调解规则是 nearest definition（最短路径优先）：A→B→C 长度为 2，A→D→E→C 长度为 3，所以取 C 1.0。\n路径长度相同时，采用“先声明优先”（POM 中 <dependency> 顺序靠前的胜出）。\n注意这与 Gradle 的“最高版本优先”相反，是最容易踩的坑。排查用 mvn dependency:tree -Dverbose。",
+      "tag": "依赖传递与冲突"
+    },
+    {
+      "type": "multi",
+      "q": "关于父 POM 中的 <dependencyManagement>，正确的说法有？",
+      "options": [
+        "子模块继承后，声明依赖可以不写 <version>",
+        "<dependencyManagement> 本身不会给子模块引入依赖",
+        "它统一锁定版本，子模块显式写 <version> 会覆盖它",
+        "<dependencyManagement> 里的依赖会自动进入子模块的编译 classpath"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "<dependencyManagement> 只管“版本与默认 scope”，不引入依赖；子模块必须自己写 <dependencies> 才真正引入。\n这正是 spring-boot-dependencies（BOM）的用法：<dependencyManagement><dependencies><dependency>...spring-boot-dependencies...<type>pom</type><scope>import</scope>，之后用 starter 就不写版本。\n与 <dependencies> 的区别：后者会被子模块继承并真实引入。",
+      "tag": "parent与BOM"
+    },
+    {
+      "type": "single",
+      "q": "本项目引入 A，A 传递带进一个有漏洞的 log4j-core，要在“本项目”剔除这条传递依赖，正确做法是？",
+      "options": [
+        "在 A 的 <dependency> 里加 <exclusions><exclusion><groupId>...</groupId><artifactId>...</artifactId></exclusion></exclusions>",
+        "给 A 加 <optional>true</optional>",
+        "把 A 的 scope 改成 provided",
+        "把 A 的 scope 改成 test"
+      ],
+      "answer": [0],
+      "explain": "exclusions 站在“引入方”的角度剪枝，写一次即在本项目生效。\n<optional>true</optional> 是站在“生产者”角度：A 的作者声明 log4j 只给自己用、不传给下游；你改自己 POM 里的声明也不会影响 A 的 POM。\n改 scope 只是改变可见阶段，依赖对象还在，语义被污染。",
+      "tag": "依赖排除"
+    },
+    {
+      "type": "single",
+      "q": "执行 mvn package 时，maven-compiler-plugin、maven-surefire-plugin、maven-jar-plugin 会依次自动运行。这说明了 Maven 的哪个机制？",
+      "options": [
+        "生命周期阶段与插件 goal 的绑定（binding）：阶段本身不做任何事，真正干活的是绑定到该阶段的插件 goal",
+        "插件需要手动在命令行逐个调用",
+        "每个插件都必须写在 <executions> 里才会执行",
+        "package 阶段会执行所有已声明的插件，与阶段无关"
+      ],
+      "answer": [0],
+      "explain": "关键认知：Maven 的生命周期只是一组“阶段名”（validate → compile → test → package → verify → install → deploy），它本身不执行任何逻辑；真正的动作来自绑定到阶段上的插件 goal。\n以 jar 打包为例，默认绑定是：process-resources ← resources:resources、compile ← compiler:compile、test-compile ← compiler:testCompile、test ← surefire:test、package ← jar:jar。所以执行 mvn package 会先跑完前面所有阶段。\n自定义时用 <plugin><executions><execution><phase>verify</phase><goals><goal>xxx</goal></goals></execution></executions> 把 goal 挂到你想要的阶段；<pluginManagement> 只统一版本，不触发执行。\n-DskipTests 只跳过 surefire 的测试执行但仍编译测试代码；-Dmaven.test.skip=true 连测试代码都不编译。",
+      "tag": "生命周期与插件绑定"
+    },
+    {
+      "type": "judge",
+      "q": "聚合/父工程的 <packaging> 必须是 pom，否则 <modules> 聚合无法正常工作。",
+      "answer": true,
+      "explain": "只有 packaging=pom 的工程才是“容器工程”，它不产出 jar/war，只承载 <modules>（聚合）和 <dependencyManagement>/<pluginManagement>（继承）。\n聚合与继承是两件独立的事：<modules> 让一次命令构建多个子模块，<parent> 让子模块继承配置，两者可以分离（子模块的 parent 也可以指向一个外部 BOM 工程）。\n如果父工程写成 jar，执行 install 时会去尝试打包而拿到空 jar，同时 modules 的聚合语义也不再成立。",
+      "tag": "多模块聚合"
+    },
+    {
+      "type": "fill",
+      "q": "在项目根目录查看完整依赖树、排查版本冲突，命令是 mvn ______:tree（填插件前缀，不含冒号）。",
+      "answer": "dependency",
+      "explain": "mvn dependency:tree；加 -Dverbose 会显示被 omitted 的冲突节点及原因，-Dincludes=com.google.guava 可只过滤某坐标。\n相关命令：mvn dependency:analyze 找“声明了未使用 / 使用了未声明”的依赖；mvn enforcer:enforce 配 dependencyConvergence 或 requireUpperBoundDeps 规则，在构建期直接拦住冲突。",
+      "tag": "依赖树排查"
+    },
+    {
+      "type": "single",
+      "q": "父 POM 中 profile A 配了 <activation><activeByDefault>true</activeByDefault></activation>，构建时又用 -P B 激活了 profile B，结果是？",
+      "options": [
+        "A 与 B 同时生效",
+        "只有 B 生效，A 因 activeByDefault 被覆盖而失效",
+        "只有 A 生效",
+        "构建直接失败"
+      ],
+      "answer": [1],
+      "explain": "activeByDefault 是“兜底默认值”：只要同一 POM 中有任何 profile 被显式激活（-P、settings.xml 的 activeProfiles，或 file/property/jdk 等 activation 条件命中），所有 activeByDefault 的 profile 就全部失效。\n这是多环境配置最典型的坑：本地能跑、CI 上配置丢了。稳妥做法是用 -P 显式指定，或在 settings.xml 里统一管理，不要依赖 activeByDefault 承载生产配置。",
+      "tag": "profile激活"
+    },
+    {
+      "type": "single",
+      "q": "运行时报 NoSuchMethodError: com.google.common.base.Preconditions.checkArgument，但源码里的调用签名是对的，最可能的原因是？",
+      "options": [
+        "编译期用的 guava 版本与运行时 classpath 里的 guava 版本不一致（依赖冲突）",
+        "JDK 版本过低",
+        "缺少 lombok 插件",
+        "该方法被声明为 private"
+      ],
+      "answer": [0],
+      "explain": "NoSuchMethodError / NoClassDefFoundError / AbstractMethodError 几乎都是“编译期一套、运行期另一套”的典型症状：传递依赖把旧版 guava 顶到了前面。\n排查：mvn dependency:tree -Dverbose -Dincludes=com.google.guava，找到引入旧版的那个依赖，用 <exclusions> 剪掉或在 <dependencyManagement> 里统一升版。\n注意这类错误在编译期完全不报，单元测试也很容易漏（测试 classpath 与运行 classpath 可能不同）。",
+      "tag": "常见报错"
+    },
+    {
+      "type": "single",
+      "q": "settings.xml 中配置 <mirrorOf>*</mirrorOf> 的含义与风险是？",
+      "options": [
+        "只镜像 central 仓库，最安全",
+        "拦截所有仓库请求（包括私服），若镜像里没有对应构件就会拉取失败",
+        "只对 SNAPSHOT 版本生效",
+        "仅用于 deploy 上传"
+      ],
+      "answer": [1],
+      "explain": "* 表示“所有仓库都走这个镜像”。如果公司同时有阿里云镜像和 Nexus 私服，写 * 会把私服地址也镜像成阿里云，私服上的内部构件就永远拉不到。\n正确写法：<mirrorOf>central</mirrorOf>，或排除法 <mirrorOf>*,!my-nexus</mirrorOf>。\n另一个高频报错 “resolution will not be reattempted until the update interval of central has elapsed”，用 mvn -U clean package 强制刷新即可。",
+      "tag": "镜像配置"
+    }
+  ]
+}

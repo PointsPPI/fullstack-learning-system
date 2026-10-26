@@ -1,0 +1,136 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "Vue 3 相比 Vue 2 在响应式实现上的核心变化是？",
+      "options": [
+        "用 `Proxy` 代理整个对象，配合 `Reflect` 操作原始对象，因此能拦截新增/删除属性、数组索引赋值和 `length` 修改",
+        "改用 `Object.defineProperty` 递归遍历所有属性，性能更好",
+        "取消了对 `getter/setter` 的依赖，改为定时轮询比对",
+        "只支持 `ref`，不再支持 `reactive`"
+      ],
+      "answer": [0],
+      "explain": "Vue 2 用 `Object.defineProperty` 在初始化时逐个属性定义 getter/setter，因此有三个先天缺陷：新增属性（`obj.newKey = 1`）、删除属性（`delete obj.key`）、数组索引赋值与 `length` 修改（`arr[0] = 1`、`arr.length = 0`）都无法被侦测，必须用 `Vue.set`/`Vue.delete` 或数组变异方法（push/pop/splice 等）兜底。Vue 3 用 `Proxy` 包裹整个对象，`get`/`set`/`deleteProperty`/`has`/`ownKeys` 等陷阱天然覆盖上述操作，且能做到惰性递归（访问到嵌套对象才代理该层，而不是初始化时全量遍历），并支持 `Map`/`Set`/`WeakMap` 等集合类型。`Proxy` 只能代理对象，所以基本类型要用 `ref` 装箱，这也是 `ref` 与 `reactive` 并存的原因；`reactive` 返回的是代理对象，解构会丢失响应性（除非用 `toRefs`），而 `ref` 在模板中自动解包。",
+      "tag": "响应式 Proxy"
+    },
+    {
+      "type": "judge",
+      "q": "`computed` 具有缓存，只有依赖变化时才重新求值；`watch` 默认不缓存，依赖变化就执行回调，适合做副作用（请求、操作 DOM、写 localStorage）。",
+      "answer": true,
+      "explain": "computed 本质是一个惰性的 effect：内部维护 dirty 标记，依赖未变时重复读取直接返回上次结果，因此适合『由已有状态推导新状态』，如过滤后的列表、拼接的展示文案。watch 是主动的订阅：每次依赖变化都触发回调，并给出新值与旧值（对象类型时旧值可能与新值同引用，因为引用未替换），支持 `deep`、`immediate`、`flush: 'post'` 等配置，适合副作用。常见误用是用 computed 发请求——computed 应当纯净无副作用，且可能因渲染时机不确定而重复/不触发。反过来用 watch 计算派生值会丢失缓存、代码也更啰嗦。Vue 3.4+ 还提供 `computed` 的 `get/set` 双函数写法做可写计算属性。另外 watch 与 watchEffect 的区别：watchEffect 自动收集依赖、无需指定源，但拿不到旧值，且首次立即执行。",
+      "tag": "computed 与 watch"
+    },
+    {
+      "type": "single",
+      "q": "父组件 `<Child :title=\"t\" @update=\"onUpdate\" />`，子组件要正确接收并对外通知，写法正确的是？",
+      "options": [
+        "子组件用 `defineProps({ title: String })` 接收，用 `defineEmits(['update'])` 声明后 `emit('update', newValue)` 通知父组件",
+        "子组件直接修改 `props.title = 'x'`，Vue 会自动同步回父组件",
+        "子组件用 `this.$props.title` 修改，再调用 `this.$parent.t = 'x'`",
+        "子组件必须用 `v-model` 才能接收 props"
+      ],
+      "answer": [0],
+      "explain": "Vue 的数据流是单向的：props 由父传给子，子不能直接改（开发环境会警告 `Set operation on key \"title\" failed: target is readonly`），否则数据来源不可追踪、调试困难。子要影响父必须通过事件：`defineEmits` 显式声明事件名（Vue 3 中建议声明以便类型推断与校验，未声明的事件仍能触发但会丢类型提示），父用 `@update` 监听。需要双向绑定语义时，用 `v-model` 约定：`v-model` 在组件上展开为 `:modelValue` + `@update:modelValue`，Vue 3 支持具名 `v-model:title`，等价于 `:title` + `@update:title`。`$parent` 直接篡改父状态属于反模式：破坏封装、在 `script setup` 中不可靠，且与响应式的可预测性冲突。若确实需要修改传入的对象内部字段，虽然技术上可行（引用共享），但仍属副作用，应通过事件或 `v-model` 表达意图。",
+      "tag": "组件 props 与 emit"
+    },
+    {
+      "type": "fill",
+      "q": "在 `<script setup>` 中，让父组件能通过模板 ref 访问子组件暴露的方法，需要调用 `____()` 宏（只填函数名）。",
+      "answer": "defineExpose",
+      "explain": "`<script setup>` 的组件默认是封闭的：父组件用 `ref` 拿到子组件实例后，访问不到内部的变量和方法，除非子组件显式 `defineExpose({ focus, reset })`。这是 Vue 3 有意设计的封装边界——避免父组件随意侵入子组件内部实现。父侧写法：`const childRef = ref(null)`，模板 `<Child ref=\"childRef\" />`，然后 `childRef.value.focus()`。注意时机：子组件未挂载时 ref 为 null，要在 `onMounted` 之后或事件回调里访问。选项式 API 中对应的是 `expose` 选项。另外 `defineExpose` 只在 `<script setup>` 中可用，普通 `setup()` 函数返回的对象默认对外可见。",
+      "tag": "组合式 API"
+    },
+    {
+      "type": "multi",
+      "q": "关于 Vue 3 生命周期钩子，下列说法正确的有？",
+      "options": [
+        "`onMounted` 在组件首次挂载到 DOM 后调用，此时可以访问真实的 DOM 元素",
+        "`onUnmounted` 在组件卸载后调用，适合清理定时器、事件监听、WebSocket 连接",
+        "`onUpdated` 在任意响应式数据变化时立即同步触发，早于 DOM 更新",
+        "`onBeforeUnmount` 时组件仍挂载在 DOM 上，可以安全读取 DOM 尺寸"
+      ],
+      "answer": [0, 1, 3],
+      "explain": "挂载类：`setup` 同步执行 → `onBeforeMount`（DOM 尚未创建）→ 渲染 → `onMounted`（DOM 已就绪，可操作真实节点、初始化第三方库如 ECharts）。更新类：`onBeforeUpdate`（数据已变、DOM 未更新）→ 补丁 → `onUpdated`（DOM 已更新），注意 onUpdated 是『本次更新完成后』触发，不是『数据一变就同步触发』，且它会在父组件与子组件中各自触发，不要在里面对状态做修改，否则可能引发无限更新循环。卸载类：`onBeforeUnmount`（实例仍完整、DOM 还在，可读尺寸/保存滚动位置）→ 销毁 → `onUnmounted`（清理副作用）。此外 `onActivated`/`onDeactivated` 用于 `<KeepAlive>` 缓存的组件，`onErrorCaptured` 捕获后代错误。组合式 API 中所有钩子必须在 `setup` 同步执行期间注册，写在 `await` 之后会失效（因为此时组件实例上下文已丢失）。",
+      "tag": "生命周期"
+    },
+    {
+      "type": "single",
+      "q": "`reactive` 与 `ref` 的使用差异，下列描述正确的是？",
+      "options": [
+        "`ref` 可包装任意类型（含基本类型），在模板中自动解包、在 JS 中需 `.value`；`reactive` 只能用于对象类型，且解构或整体替换会丢失响应性",
+        "`ref` 只能包装基本类型，对象必须用 `reactive`",
+        "`reactive` 返回的对象在模板中也必须写 `.value`",
+        "`ref` 的值变化不会触发视图更新，需要手动调用 `$forceUpdate`"
+      ],
+      "answer": [0],
+      "explain": "`ref` 内部用 `{ value }` 的 getter/setter 包装（Vue 3.4+ 对基本类型改用 `dep` 直接挂载优化），所以 `n.value++` 触发更新；模板中 Vue 会自动解包顶层 ref，因此写 `{{ n }}` 而非 `{{ n.value }}`（在对象/数组内部则不会自动解包）。`reactive` 基于 Proxy，只能代理对象/数组/Map/Set，传基本类型会原样返回并警告。两个关键坑：(1) `const { count } = reactive(obj)` 解构出的是普通值，脱离代理后不再追踪，需用 `toRefs` 或 `toRef`；(2) `let state = reactive({a:1}); state = reactive({a:2})` 整体替换后，模板仍引用旧代理，需改用 `ref` 或 `Object.assign(state, newObj)`。实践建议：统一用 `ref` 最省心，`reactive` 用于逻辑内聚的一组状态；`shallowRef`/`shallowReactive` 用于大对象性能优化（只追踪第一层）。",
+      "tag": "响应式 Proxy"
+    },
+    {
+      "type": "single",
+      "q": "模板中 `v-if` 与 `v-show` 的区别，下列说法正确的是？",
+      "options": [
+        "`v-if` 是条件渲染，切换时销毁/重建 DOM 与组件（触发完整生命周期）；`v-show` 只是切换 `display`，元素始终在 DOM 中，首次渲染成本更高但切换便宜",
+        "`v-show` 会销毁组件，`v-if` 只改样式",
+        "两者完全等价，只是语法不同",
+        "`v-if` 不能与 `v-for` 同时使用，`v-show` 可以且优先级更高"
+      ],
+      "answer": [0],
+      "explain": "`v-if` 是编译期的条件分支（生成三元表达式或注释占位节点），条件为假时组件不渲染、不实例化，切回时重新创建并走一遍 `onMounted` 等生命周期——适合低频切换、初始可能不需要的内容（首屏优化）。`v-show` 始终渲染，只改内联 `display: none`，元素保留在 DOM 与组件树中，切换只改样式——适合高频切换（tab、折叠面板），但首屏成本与 DOM 节点数更高，且 `display` 会被内联样式覆盖，与 `v-if` 混用要注意顺序。`v-if` 与 `v-for` 同用时，Vue 3 中 `v-if` 优先级高于 `v-for`（Vue 2 相反），这会导致 `v-if` 拿不到循环变量而报错，正确做法是用 computed 先过滤数据或在 `<template>` 内层套 `v-if`。此外 `v-show` 不支持 `<template>` 元素（无实际 DOM 可隐藏）。",
+      "tag": "模板指令"
+    },
+    {
+      "type": "judge",
+      "q": "在 `v-for` 中把 `index` 当作 `:key`，在列表插入或排序时可能导致组件状态错乱；更稳妥的 `key` 是业务唯一 id。",
+      "answer": true,
+      "explain": "`key` 是 Vue 虚拟 DOM diff 的『身份标识』。用 index 作 key 时，身份随位置变化：在头部插入一项后，原来 index 0 的元素变成 index 1，Vue 认为『第 0 项内容变了』而不是『插入了新项』，于是复用旧组件实例并就地打补丁——这会造成输入框内容错位、动画状态错乱、子组件内部状态（如展开状态、已加载数据）跟着移动到别的行，性能上也会多出不必要的 patch。用稳定的业务 id 时，Vue 能正确识别新增/移动/删除，做最小化 DOM 操作。仅在列表内容完全静态、不排序不插入时可勉强用 index。同理，`Math.random()` 或 `Date.now()` 作 key 会导致每次渲染都全量重建，是最差做法。React 中同一问题在列表增删时表现为受控组件状态错乱。",
+      "tag": "模板指令"
+    },
+    {
+      "type": "single",
+      "q": "下面代码中，点击按钮后页面显示的值是？\n```js\nimport { ref, reactive } from 'vue';\nconst count = ref(0);\nconst state = reactive({});\nfunction inc() { count.value++; }\n```\n模板：`<button @click=\"inc\">{{ state.count }}</button>`（`state` 中没有 `count` 字段）",
+      "options": [
+        "始终显示空（undefined 渲染为空字符串），因为 `state` 里根本没有 `count` 这个属性，模板不会凭空追踪 `count`",
+        "正常从 0 递增",
+        "显示 `[object Object]`",
+        "点击后报错，因为 reactive 不允许访问不存在的属性"
+      ],
+      "answer": [0],
+      "explain": "这题考的是『响应式追踪发生在属性访问时』。模板里访问的是 `state.count`，而 `state` 这个 reactive 对象上从未定义过 count 字段——Proxy 的 get 陷阱虽然会被触发，但取到的值是 undefined，且没有可追踪的依赖（Vue 3 中读取不存在的属性不会与任何 ref 建立关联）。所以 `count.value++` 只会通知订阅了 count 的 effect，而模板渲染 effect 订阅的是 `state.count` 这个（不存在的）键，两者毫无关联，页面不会更新，插值把 undefined 渲染成空字符串。正确的三种写法：(1) 模板直接写 `{{ count }}`（顶层 ref 自动解包）；(2) 把 ref 放进 reactive 对象：`const state = reactive({ count })`，此时模板 `state.count` 会被自动解包为数值并正确追踪；(3) 用 computed 派生。这个坑在真实项目里表现为『数据明明改了，视图不动』，排查时先确认模板访问路径与响应式源头是否真的连上了。",
+      "tag": "响应式 Proxy"
+    },
+    {
+      "type": "fill",
+      "q": "Vue Router 中，用于在组件内以编程方式跳转（不刷新页面）最常用的方法名是 `router.____()`（只填方法名，不含括号）。",
+      "answer": "push",
+      "explain": "`router.push(location)` 会向历史栈压入一条新记录（浏览器后退可回退），支持字符串路径或 `{ name, params, query }` 对象；`router.replace` 替换当前记录（后退不会回到它，适合登录后重定向、表单提交后跳转）；`router.go(n)` 等价于 `history.go(n)`。跳转完成的时机要注意：`push` 返回 Promise，但不要在组件内 `await router.push()` 后立刻读取新路由的 `route.params`——此时路由可能尚未完成导航确认（守卫异步时尤其明显），应以 `onBeforeRouteUpdate` 或 watch `route` 为准。`router.push` 跳转到当前相同路由会抛 NavigationDuplicated（Vue Router 4 中已改为 resolve，不再报错但也不重复导航）。带参数的路径必须与服务端/构建配置的 base 一致，hash 模式与 history 模式的差异也影响部署配置（history 模式需要服务端回退到 index.html，否则刷新 404）。",
+      "tag": "Vue Router"
+    },
+    {
+      "type": "single",
+      "q": "`watch(() => props.id, fn, { immediate: true, flush: 'post' })` 中 `flush: 'post'` 的含义是？",
+      "options": [
+        "回调推迟到组件 DOM 更新之后执行，因此能读取到更新后的 DOM",
+        "回调在响应式数据变化时同步立即执行",
+        "只在组件卸载后执行一次",
+        "让 watch 变成深度监听"
+      ],
+      "answer": [0],
+      "explain": "`flush` 控制 watch 回调相对于组件渲染的调度时机：`'pre'`（默认）在 DOM 更新前执行，适合在渲染前改数据但不要读 DOM；`'post'` 推迟到组件更新之后（等价于把回调放进 post-flush 队列），能安全读 `$el` 尺寸、`ref` 指向的节点、滚动位置；`'sync'` 在数据变化的同一 tick 同步执行，会在同一轮内多次触发，性能差且容易造成递归更新，除非明确需要（如需要在渲染前拦截）。`immediate: true` 表示 watch 建立时先以当前值执行一次回调（此时旧值是 undefined），常用来做『进入页面先拉一次数据 + 后续变化再拉』。`deep: true` 才是深度监听（会遍历对象，代价高，Vue 3.5 支持 `deep: 数字` 限制层级）。这三个选项相互独立，常被混为一谈。",
+      "tag": "computed 与 watch"
+    },
+    {
+      "type": "single",
+      "q": "关于 Vue 3 中 `v-model` 在自定义组件上的展开，下列正确的是？",
+      "options": [
+        "`<Comp v-model=\"x\" />` 等价于 `:modelValue=\"x\"` 加 `@update:modelValue=\"x = $event\"`；`<Comp v-model:title=\"t\" />` 对应 `:title` 与 `@update:title`",
+        "组件上的 `v-model` 会直接修改父组件的变量，无需事件",
+        "Vue 3 只支持一个 `v-model`，不能具名",
+        "`v-model` 在组件上等价于 `.sync`，且 Vue 3 保留了 `.sync` 修饰符"
+      ],
+      "answer": [0],
+      "explain": "Vue 3 把 `v-model` 统一为『一个 prop + 一个 update 事件』的语法糖：默认 prop 名是 `modelValue`，事件名是 `update:modelValue`；用 `v-model:title` 可声明任意具名双向绑定，对应 `title` prop 与 `update:title` 事件，因此一个组件上可以有多个 v-model（Vue 2 只能有一个 value/input）。子组件内需 `defineProps(['modelValue'])` 与 `defineEmits(['update:modelValue'])`，修改时 `emit('update:modelValue', v)`，不能直接改 prop。Vue 2 的 `.sync` 修饰符（` :title.sync=\"t\"` 展开为 `:title` + `@update:title`）在 Vue 3 中被移除，因为具名 v-model 已覆盖其能力——迁移时 `.sync` 要改写为 `v-model:title`。另外 `v-model` 支持修饰符 `.trim`、`.number`、`.lazy`（原生表单），组件上使用修饰符时会作为 `modelModifiers` prop 传入。",
+      "tag": "组件 props 与 emit"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+  <!--
+    本工坊专用 Maven 配置：只影响本目录下的构建，不改动你全局 ~/.m2/settings.xml
+    localRepository 指向工坊本地仓库，与全局仓库隔离
+  -->
+  <localRepository>C:/Users/37517/Desktop/DSH_PLAY/sdy/tools/maven/repo</localRepository>
+
+  <mirrors>
+    <mirror>
+      <id>aliyun-public</id>
+      <name>Aliyun Public</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+
+  <profiles>
+    <profile>
+      <id>jdk21</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+        <jdk>21</jdk>
+      </activation>
+      <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+      </properties>
+    </profile>
+  </profiles>
+</settings>

@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "下面代码在浏览器控制台的输出依次是什么？\n```js\nconsole.log(1 + '2', '3' * '4', [] == false, null == 0, 0.1 + 0.2 === 0.3);\n```",
+      "options": [
+        "12 12 true false false",
+        "3 12 true false true",
+        "12 12 false false false",
+        "12 7 true true false"
+      ],
+      "answer": [0],
+      "explain": "逐个拆：`1 + '2'` 中有一侧是字符串，`+` 走字符串拼接得 `'12'`；`'3' * '4'` 只有 `+` 有字符串重载，`*` 一律走数值转换得 12（number）；`[] == false` 是宽松相等：布尔先转数字 `false → 0`，对象转原始值 `[] → ''`，`'' → 0`，`0 == 0` 成立为 true；`null == 0` 为 false，因为宽松相等规范里 `null` 只与 `undefined` 相等，不会转成数字；`0.1 + 0.2 === 0.3` 为 false，因为 IEEE-754 双精度无法精确表示 0.1 和 0.2，`0.1 + 0.2` 实际是 `0.30000000000000004`。比较浮点应使用误差范围：`Math.abs(a - b) < Number.EPSILON`。另外 `[] + {}` 得 `'[object Object]'`、`{} + []` 在语句位置会被解析成块语句加一元加号，得 0——这类题的关键是先判断是否触发 ToPrimitive。",
+      "tag": "类型转换"
+    },
+    {
+      "type": "fill",
+      "q": "`Number.MAX_SAFE_INTEGER` 的精确数值是 ____。",
+      "answer": "9007199254740991",
+      "explain": "它等于 2^53 - 1 = 9007199254740991，含义是『能保证与下一个整数互不混淆的最大整数』。IEEE-754 双精度有 52 位尾数（隐含 1 位共 53 位有效位），在 ±2^53 范围内所有整数都能精确表示；到 2^53 时，相邻可表示值之间的间隔变成 2，`2^53 === 2^53 + 1` 会返回 true。对应地还有 `Number.MIN_SAFE_INTEGER`（-(2^53-1)）与 `Number.isSafeInteger()` 判定。需要更大整数时用 `BigInt`（字面量加 `n` 后缀，`9007199254740993n`），但 BigInt 不能与 Number 直接混合运算，也不能被 `JSON.stringify` 序列化。ID 场景（如雪花算法生成的 19 位 ID）在 JS 中丢失精度就是踩这个坑，实践上让后端以字符串下发。",
+      "tag": "数值精度"
+    },
+    {
+      "type": "judge",
+      "q": "在 `let x = 1;` 之前执行 `console.log(x)` 会抛出 ReferenceError（暂时性死区），而 `var` 在声明前访问得到 `undefined`。",
+      "answer": true,
+      "explain": "`var` 声明的变量在进入作用域时就被创建并初始化为 undefined（提升/hoisting），所以声明前读取得 undefined。`let`/`const` 同样会被提升，但不会被初始化，从块开始到声明语句之间的这段区域称为暂时性死区（TDZ），任何读写都会抛 `ReferenceError: Cannot access 'x' before initialization`。这不是『没提升』，而是『提升了但处于未初始化状态』——`typeof x` 在 TDZ 内也会抛错，而 `typeof` 对完全未声明的变量只是返回 'undefined'，两者行为不同，正好证明 let 的绑定确实存在。函数声明是完整提升（可提前调用），而 `const fn = () => {}` 属于 TDZ 规则。",
+      "tag": "作用域与提升"
+    },
+    {
+      "type": "single",
+      "q": "下面代码的输出是？\n```js\nfor (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 0);\n}\n```",
+      "options": [
+        "3 3 3",
+        "0 1 2",
+        "0 0 0",
+        "1 2 3"
+      ],
+      "answer": [0],
+      "explain": "`var` 是函数作用域（这里在全局），整个循环只有一个 `i` 绑定。循环体里的箭头函数形成闭包，捕获的是同一个变量引用而非当时的值。`setTimeout` 回调进入宏任务队列，要等同步代码（包括整个 for 循环）跑完才执行，此时 i 已经递增到 3（循环条件 3 < 3 不成立而退出），三个回调读到的都是 3。改成 `for (let i = 0; ...)` 就输出 0 1 2：规范要求 let 在 for 循环中每轮迭代创建一个新的绑定，并把上一轮的值复制进去，因此每个闭包捕获的是各自那一轮的 i。等价的旧写法是 IIFE：`(function(j){ setTimeout(() => console.log(j), 0) })(i)`。这也是『闭包捕获变量引用而非快照』的经典演示。",
+      "tag": "闭包"
+    },
+    {
+      "type": "single",
+      "q": "浏览器中以普通脚本（非严格模式、非模块）执行下面代码，输出是？\n```js\nvar title = 'global';\nconst obj = {\n  title: 'obj',\n  hi() { return this.title; },\n  arrow: () => this.title\n};\nconsole.log(obj.hi(), obj.arrow());\n```",
+      "options": [
+        "obj global",
+        "obj obj",
+        "undefined undefined",
+        "obj undefined"
+      ],
+      "answer": [0],
+      "explain": "`this` 的绑定规则取决于『调用方式』而非『定义位置』。`obj.hi()` 是方法调用，调用时 `this` 指向点号前的对象 obj，返回 'obj'。箭头函数不绑定自己的 this，它在定义时就用外层作用域的 this——这里外层是全局作用域，非严格模式下全局 this 是 window，而 `var title` 恰好挂到 window 上，于是返回 'global'。若把这段代码放进 ES 模块或严格模式，全局 this 是 undefined，`this.title` 会抛 TypeError（读 undefined 的属性）；在 class 字段箭头函数里，则指向实例。四个规则优先级：new > 显式 bind/call/apply > 方法调用 > 默认绑定；箭头函数与 bind 过的函数会跳过前三条。判断 this 的正确姿势是先看调用点：`a.b.fn()`、`fn()`、`new Fn()`、`fn.call(x)`。补充：不要用 `name` 作全局变量名，`window.name` 是浏览器特殊属性且会强制转字符串，演示时容易误判。",
+      "tag": "this 指向"
+    },
+    {
+      "type": "single",
+      "q": "下面代码的输出是？\n```js\nfunction F() {}\nF.prototype.a = 1;\nconst o = new F();\nconsole.log(o.a, o.hasOwnProperty('a'), 'a' in o, o.constructor === F);\n```",
+      "options": [
+        "1 false true true",
+        "1 true true true",
+        "undefined false true false",
+        "1 false false true"
+      ],
+      "answer": [0],
+      "explain": "`new F()` 创建一个对象，其内部 `[[Prototype]]` 指向 `F.prototype`，同时执行构造函数体（这里为空）。`o.a` 沿原型链查找到 F.prototype 上的 1。`hasOwnProperty` 只检查自有属性（不看原型链），所以是 false。`in` 运算符检查整个原型链，所以是 true——这是 `in` 与 `hasOwnProperty` 的核心区别。`o.constructor` 继承自 F.prototype.constructor（默认指向 F），因此为 true；但如果手动整体替换 `F.prototype = {...}` 而不补 constructor，这一项会变成 Object。补充：`Object.getPrototypeOf(o) === F.prototype`；`o instanceof F` 判断的是 F.prototype 是否在 o 的原型链上；箭头函数没有 prototype，不能被 new。",
+      "tag": "原型链"
+    },
+    {
+      "type": "single",
+      "q": "下面代码的输出顺序是？\n```js\nconsole.log('1');\nsetTimeout(() => console.log('2'), 0);\nPromise.resolve().then(() => console.log('3'));\nqueueMicrotask(() => console.log('4'));\nconsole.log('5');\n```",
+      "options": [
+        "1 5 3 4 2",
+        "1 5 4 3 2",
+        "1 3 4 5 2",
+        "1 5 2 3 4"
+      ],
+      "answer": [0],
+      "explain": "同步代码先跑完：'1'、'5'。之后每轮宏任务结束时会清空微任务队列（microtask checkpoint）。`Promise.then` 与 `queueMicrotask` 都属于微任务，按入队顺序执行，所以 3 在 4 之前。`setTimeout(..., 0)` 是宏任务（task），要等当前宏任务内的微任务全部清空后，进入下一轮事件循环才执行，何况浏览器对嵌套层级有 4ms 的最小延迟钳制（HTML 规范对嵌套超过 5 层的情况强制 ≥4ms），所以 2 最后。若把 `queueMicrotask` 换成再一个 `Promise.then` 且后者先注册，顺序就改为 4 前 3 后。还要注意 `await` 之后的代码等价于 `then` 回调（微任务），而 `setTimeout` 里再 `await` 会产生新的一轮宏+微任务交错，这正是顺序题最容易错的地方。",
+      "tag": "事件循环与宏微任务"
+    },
+    {
+      "type": "single",
+      "q": "下面代码的输出顺序是？\n```js\nasync function f() {\n  console.log('a');\n  await null;\n  console.log('b');\n}\nconsole.log('c');\nf();\nconsole.log('d');\n```",
+      "options": [
+        "c a d b",
+        "c a b d",
+        "a b c d",
+        "c d a b"
+      ],
+      "answer": [0],
+      "explain": "调用 async 函数时函数体立即同步执行，直到遇到第一个 `await` 才暂停并让出控制权——所以先输出 'c'（在调用之前），再输出 'a'（进入 f 后同步打印），然后 `await null` 把后续代码包装成微任务挂起，控制权回到调用处，输出 'd'，同步代码结束后微任务队列被清空，才输出 'b'。关键结论：async 函数在第一个 await 之前的部分是同步执行的，所以『async 函数里的 console.log 是同步的』。`await` 的具体值不影响顺序（即使是 `await null` 或 `await 1` 也会让出一次），只有 `await` 一个已经 fulfilled 的 thenable 才可能只让出一轮微任务。若把 `await null` 换成 `await new Promise(r => setTimeout(r, 0))`，'b' 会被推到宏任务之后，顺序就变成 c a d 然后才是 b。",
+      "tag": "async/await"
+    },
+    {
+      "type": "single",
+      "q": "用 `JSON.parse(JSON.stringify(obj))` 做深拷贝时，下列哪些数据会出问题？",
+      "options": [
+        "Date 变成 ISO 字符串、NaN 变成 null、undefined 与函数属性被丢弃、循环引用直接抛错",
+        "只有函数会丢失，其他类型都能正确复制",
+        "Date 能被正确还原为 Date 对象，Map/Set 也能保留",
+        "循环引用会被自动打断成 null，不会报错"
+      ],
+      "answer": [0],
+      "explain": "JSON 序列化只认识 null、boolean、string、有限 number、数组和纯对象。`Date` 走 `toJSON()` 变成字符串；`NaN`/`Infinity` 变成 `null`；值为 undefined、函数、Symbol 的属性被直接丢弃（在数组里则变成 null）；`RegExp`、`Map`、`Set`、`Error` 变成空对象 `{}`；原型被抹平成 Object；循环引用触发 `TypeError: Converting circular structure to JSON`。此外它无法保留稀疏数组和非枚举属性。所以工程上应使用 `structuredClone(obj)`（浏览器/Node 17+ 原生支持，可处理 Date、Map、Set、循环引用、ArrayBuffer，但仍不能克隆函数和 DOM 节点），或 lodash 的 `cloneDeep`，或手写递归并记录已访问对象用 WeakMap 解决循环。要区分浅拷贝：`Object.assign({}, o)`、`{...o}`、`arr.slice()` 都只复制第一层引用。",
+      "tag": "深浅拷贝"
+    },
+    {
+      "type": "judge",
+      "q": "防抖（debounce）在持续触发期间不会执行，停止触发并等待 delay 后才执行一次；节流（throttle）在持续触发期间按固定频率执行。",
+      "answer": true,
+      "explain": "防抖是『重置计时器』：每次触发都 `clearTimeout` 再 `setTimeout`，因此高频触发期间一直不执行，只有静默超过 delay 才执行最后一次——适合搜索联想、输入校验、窗口 resize 结束后的重算。节流是『限流开关』：第一次触发时执行并记录时间戳（或置标志位），delay 内的后续触发被忽略，直到时间窗口过去——适合滚动进度上报、按钮防连点、拖拽节流。实现要点：防抖返回的函数要保留 `this` 与参数（用闭包 + `fn.apply(this, args)`）；要支持立即执行用 `immediate`/leading 选项；节流的时间戳版是『首触发立即执行、尾触发丢弃』，定时器版是『首触发延迟执行、尾触发必有』，两者行为不同，要按需求选择。取消能力（返回 cancel 方法）在组件卸载时清理定时器、避免内存泄漏，这也是真实项目里最容易漏的一步。",
+      "tag": "防抖节流"
+    },
+    {
+      "type": "multi",
+      "q": "关于 ES Module 与 CommonJS，下列说法正确的有？",
+      "options": [
+        "ESM 的 import 是静态语法，只能在顶层声明，因此可被构建工具静态分析做 tree-shaking",
+        "ESM 的导出是 live binding：模块内部变量变化后，导入方读到的是新值",
+        "ESM 顶层作用域中的 `this` 是 undefined",
+        "浏览器里可以直接用 `require()` 加载 ESM 模块"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "ESM 的 import/export 是声明式的静态语法（不能写在 if 里、不能拼接路径），解析阶段就能确定依赖图，这是 tree-shaking 和静态分析的前提；需要按条件加载时用动态 `import()`（返回 Promise）。ESM export 的是绑定而非快照：`export let n = 1;` 之后再 `n++`，导入方看到的 `n` 同步变化（CommonJS 的 `module.exports` 是导出时的对象引用，对基本类型是值拷贝，所以拿不到后续变化）。ESM 顶层 `this` 是 undefined（模块作用域），CommonJS 顶层 `this` 是 `module.exports`。ESM 默认严格模式、有顶层 await。浏览器不支持 `require`（那是 Node 的 CJS API），Node 中要加载 ESM 用动态 `import()`，或在 CJS 里用 `createRequire` 反向加载。ESM 是异步加载且依赖关系先求值，CJS 是同步 require、运行时才能确定依赖。",
+      "tag": "ESM 模块化"
+    },
+    {
+      "type": "single",
+      "q": "关于 DOM 事件委托，下列说法正确的是？",
+      "options": [
+        "在父元素上监听，利用事件冒泡处理子元素的点击；动态新增的子元素无需重新绑定，但 `event.target` 可能是更深的子节点，通常需要 `closest()` 校正",
+        "事件委托依赖事件捕获，必须在父元素上用 `addEventListener(fn, true)` 才能生效",
+        "事件委托能减少监听器数量，但会导致子元素自身的 `stopPropagation` 也无法阻止",
+        "委托后 `event.currentTarget` 就等于被点击的子元素"
+      ],
+      "answer": [0],
+      "explain": "事件流分捕获、目标、冒泡三阶段，`addEventListener` 默认在冒泡阶段触发，委托正是依赖冒泡：点击子元素时事件向上冒泡到父元素的监听器，父元素用 `event.target`（真正触发的最深元素）判断来源。由于 target 可能是子元素内部的 span/图标，实践中写 `const li = e.target.closest('li[data-id]')`，再用 `if (!li || !list.contains(li)) return` 做边界校验，避免点到空白或外部元素误判。`currentTarget` 始终是『当前正在执行监听器的元素』，即绑定监听的那个父元素，和 target 不同。事件委托能显著减少监听器数量（长列表、动态内容），但代价是逻辑集中、需要判空与类型判断；另外 `stopPropagation` 会阻断冒泡从而让委托失效，`stopImmediatePropagation` 还会阻止同元素上的其他监听器。不冒泡的事件（`focus`/`blur`、`mouseenter`/`mouseleave`、`load`）不能委托，需改用能冒泡的 `focusin`/`focusout` 或捕获阶段监听。",
+      "tag": "事件委托"
+    }
+  ]
+}

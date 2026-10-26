@@ -1,0 +1,169 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "MyBatis 中 SqlSessionFactory 的正确用法是？",
+      "options": [
+        "应用启动时构建一次，作为全局单例长期复用；SqlSession 才是每次请求/操作创建并关闭",
+        "每次查询都 new 一个 SqlSessionFactory",
+        "每个线程创建一个 SqlSessionFactory",
+        "SqlSessionFactory 与 SqlSession 生命周期相同"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "SqlSessionFactory 是重量级对象（持有 Configuration、所有 MappedStatement、数据源），构建成本高且线程安全，必须单例。\nSqlSession 是非线程安全的轻量对象，代表一次数据库会话，用 try-with-resources 用完即关；在 Spring 集成下由 SqlSessionTemplate 管理，无需手动开关。\nSpring Boot 里通常不直接碰 SqlSessionFactory，只在需要多数据源或自定义插件时才注入。",
+      "tag": "SqlSessionFactory"
+    },
+    {
+      "type": "single",
+      "q": "Mapper 接口没有实现类，MyBatis 是如何让 userMapper.selectById(1) 能执行的？",
+      "options": [
+        "启动时为接口生成 JDK 动态代理，代理根据“接口全限定名 + 方法名”定位 MappedStatement 并执行",
+        "编译期用注解处理器生成实现类",
+        "运行时用字节码把接口改写成类",
+        "反射直接调用 XML 里的方法"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "MapperProxyFactory + MapperProxy 生成代理；statementId = namespace + \".\" + 方法名，namespace 必须等于接口全限定名。\n因此两种绑定方式：① XML 的 namespace 写成接口全限定名，<select id=\"selectById\"> 与方法同名；② 直接在接口方法上写 @Select/@Insert 注解。\n常见坑：XML 放在 java 目录下但没配 resources 拷贝，导致 “Invalid bound statement (not found)”。",
+      "tag": "Mapper接口与XML"
+    },
+    {
+      "type": "single",
+      "q": "关于 #{} 与 ${}，正确的是？",
+      "options": [
+        "#{} 是预编译占位符（生成 ?，PreparedStatement 绑定），防注入；${} 是字符串直接拼接，不防注入，只应用于动态表名/列名/排序字段且必须白名单校验",
+        "两者完全等价，只是写法不同",
+        "${} 更安全，因为先做了转义",
+        "#{} 不能用于 WHERE 条件"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "#{} 经 ParameterHandler 用 setXxx 绑定，SQL 结构固定，输入 ' OR 1=1 -- 只是普通字符串。\n${} 在解析阶段就替换进 SQL 文本，等价于手写字符串拼接，注入风险极高。\n必须用 ${} 的场景只有“标识符位置”：ORDER BY ${sortColumn}、FROM ${tableName}。安全写法：后端用枚举/Set 白名单校验（if (!ALLOWED.contains(sort)) throw ...），绝不直接透传前端参数。\n顺带：#{} 的 javaType/jdbcType/typeHandler 可精细控制，NULL 场景建议写 #{name,jdbcType=VARCHAR}。",
+      "tag": "#{}与${}"
+    },
+    {
+      "type": "multi",
+      "q": "关于 resultMap 与自动映射，正确的有？",
+      "options": [
+        "resultMap 可显式定义列与属性的映射、typeHandler、以及 association/collection 关联",
+        "mapUnderscoreToCamelCase=true 可让 user_name 自动映射到 userName",
+        "resultType 与 resultMap 可同时用于同一个 <select>",
+        "resultMap 只能用于单表查询"
+      ],
+      "answer": [
+        0,
+        1
+      ],
+      "explain": "自动映射的前提是列名与属性名（忽略大小写、可按驼峰规则）能对上；对不上就要写 resultMap 或用 AS 起别名。\nresultType 与 resultMap 是互斥属性，同时写会报错。\nresultMap 的价值在复杂映射：<association property=\"dept\" javaType=\"Dept\">（一对一）、<collection property=\"orders\" ofType=\"Order\">（一对多），可配合 <id>/<result> 与嵌套 select（N+1 风险）或 join 一次性映射。",
+      "tag": "resultMap"
+    },
+    {
+      "type": "single",
+      "q": "使用 <foreach> 做 IN 查询的正确写法是？",
+      "options": [
+        "<foreach collection=\"ids\" item=\"id\" open=\"(\" separator=\",\" close=\")\">#{id}</foreach>",
+        "<foreach collection=\"ids\" item=\"id\">${id}</foreach>",
+        "<foreach collection=\"ids\">#{ids}</foreach>",
+        "IN 查询无法用 foreach 实现"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "collection 取值规则：List 默认名为 list、数组为 array、Map 用其 key；用 @Param(\"ids\") 命名最稳妥。\nitem 是循环变量，separator 是分隔符，open/close 包住括号。\n用 ${} 会拼接成字符串，既注入又可能语法错误（不加引号时）。\n注意 IN 列表过长（如上万）会拖慢解析，应分批或改用临时表 JOIN。",
+      "tag": "动态SQL foreach"
+    },
+    {
+      "type": "single",
+      "q": "动态 SQL 中 <where> 与 <if> 配合的作用是？",
+      "options": [
+        "自动补 WHERE 关键字，并智能去掉开头多余的 AND/OR",
+        "给所有条件加括号",
+        "把 if 里的条件都变成 OR",
+        "自动做分页"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "<where> 等价于 <trim prefix=\"WHERE\" prefixOverrides=\"AND |OR \">：有内容才加 WHERE，并剥掉第一个 AND/OR；<set> 同理用于 UPDATE，自动去掉尾部逗号。\n<if> 是“单条件开关”，多个 if 之间是并列的 AND 叠加，无法表达“只选一个分支”的语义 —— 那是 <choose><when .../><otherwise/></choose> 的职责（相当于 Java 的 switch，只命中第一个成立的分支）。\n典型用法：\n<choose>\n  <when test=\"id != null\">AND id = #{id}</when>\n  <when test=\"name != null\">AND name = #{name}</when>\n  <otherwise>AND status = 1</otherwise>\n</choose>\n三者区别：if 是并列叠加（可以全部生效）、choose 是互斥单选（只命中第一个）、foreach 是循环展开。\ntest 里字符串比较用单引号（test=\"type == 'A'\"）；判断集合用 size()；OGNL 中数字 1 会被当成字符，注意类型（可写 \"1\".equals(status)）。",
+      "tag": "动态SQL if/where/choose"
+    },
+    {
+      "type": "single",
+      "q": "PageHelper 能实现“只对紧接着的第一条查询分页”，其原理是？",
+      "options": [
+        "把分页参数存入 ThreadLocal，由拦截器（Interceptor）在执行 SQL 前改写为 LIMIT 语句，执行后清理 ThreadLocal",
+        "在数据库端建分页视图",
+        "用游标一次性把全部数据读到内存再切分",
+        "依赖 MySQL 的 SQL_CALC_FOUND_ROWS 特性"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "PageHelper.startPage(pageNum, pageSize) 把参数放进 ThreadLocal；PageInterceptor 拦截 Executor.query，判断是 SELECT 就加上 COUNT 查询与 LIMIT，最后在 finally 清除 ThreadLocal。\n正因为是 ThreadLocal + “只对第一条”生效，如果 startPage 之后先执行了别的查询（或异步线程），分页会错位 —— 常见 bug。\n开启 reasonable 会做页码合理化；count 查询可关闭以省一次 COUNT。替代方案：MyBatis-Plus 的 IPage，或手写 LIMIT。",
+      "tag": "分页实现"
+    },
+    {
+      "type": "single",
+      "q": "MyBatis 一级缓存与二级缓存的默认状态是？",
+      "options": [
+        "一级缓存（SqlSession 级）默认开启；二级缓存（Mapper/namespace 级）默认关闭，需 <cache/> 且实体需 implements Serializable",
+        "两级缓存都默认开启",
+        "一级缓存默认关闭，二级默认开启",
+        "两级都需手动开启"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "一级缓存作用域 = SqlSession（Spring 集成下若无事务，每次查询都是新 SqlSession，缓存基本无效）；执行 insert/update/delete 会清空；可 localCacheScope=STATEMENT 关闭。\n二级缓存跨 SqlSession，按 namespace 共享，需要 <cache/> 声明，并把返回值设为可序列化；多个 namespace 用 <cache-ref> 共享时改动会互清。\n陷阱：二级缓存对多表关联查询极易读到不一致数据（别的表改了但本 namespace 不知道），生产中通常关闭或只在读多写少的字典表上开启。",
+      "tag": "一级二级缓存"
+    },
+    {
+      "type": "judge",
+      "q": "MyBatis 的延迟加载需要配合嵌套查询（select=\"...\"）才有意义；用 JOIN 的嵌套结果映射是一次性取回全部数据，谈不上延迟。",
+      "answer": true,
+      "explain": "触发条件：全局 lazyLoadingEnabled=true 且 aggressiveLazyLoading=false（否则访问主对象任意属性就会加载所有延迟属性）。\n嵌套查询（association/collection 上写 select=\"...\"）才可能延迟：先只查主表，真正访问关联属性时才发第二条 SQL；而用 JOIN 的嵌套结果映射（内联 <association>/<collection> 的 column）在一次查询里全部取出，没有延迟可言。\n风险：N+1 查询 —— 查 N 个订单再逐个查用户；延迟加载只是把 N+1 推迟到“必须用时”。正解是 join 一次取回，或批量查询（IN）。",
+      "tag": "延迟加载与N+1"
+    },
+    {
+      "type": "single",
+      "q": "启动报错 Invalid bound statement (not found): com.x.mapper.UserMapper.selectById，最不可能的原因是？",
+      "options": [
+        "数据库连接池配置过小",
+        "XML 的 namespace 与接口全限定名不一致",
+        "XML 中缺少 id=\"selectById\" 的语句，或方法名拼错",
+        "XML 放在 src/main/java 下但 Maven 未配置 resources 拷贝，编译产物里没有该 XML"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "BindingException 的本质是“找不到 MappedStatement”，与数据库连接无关。逐项排查：\n① namespace 是否等于接口全限定名；② 语句 id 是否与方法名完全一致（大小写也要一致）；③ XML 是否被打进 target/classes（放 java 目录需在 pom 配 <resources> 包含 *.xml，或放 resources 下的同名包路径）；④ mapper-locations 配置是否匹配（classpath*:mapper/**/*.xml）；⑤ 是否同时存在注解与 XML 导致 id 冲突。\n速查手段：MyBatis 日志开 DEBUG 打印 Configuration 里已注册的 statementId 列表。",
+      "tag": "BindingException排查"
+    },
+    {
+      "type": "single",
+      "q": "一张订单对应多条明细，用一次 JOIN 查询映射成 Order 对象里含 List<OrderItem>，应使用？",
+      "options": [
+        "<resultMap> 里的 <collection property=\"items\" ofType=\"OrderItem\">，并以 order id 作为 <id> 以便合并重复行",
+        "两次独立查询后手动 setItems",
+        "把明细序列化成 JSON 存进订单表的字段",
+        "<association> 即可，collection 用于一对一"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "一对多用 <collection>，一对一用 <association>（记法：association 是“一个”，collection 是“一堆”）。\nJOIN 会产生笛卡尔式重复行，MyBatis 靠 <id> 列判断“是否同一主对象”，把重复行的明细合并到同一个 List —— 所以 <id> 不能漏。\n另一种写法是嵌套 select（collection 上写 select=\"selectItemsByOrderId\"），一单一条子查询，会引发 N+1；数据量大时优先 JOIN，或先查主表再按 id 批量查明细在内存分组。",
+      "tag": "一对一与一对多"
+    },
+    {
+      "type": "fill",
+      "q": "让数据库列名 user_name 自动映射到 Java 属性 userName，需要把配置项 mapUnderscoreToCamel______ 设为 true（填一个英文单词）。",
+      "answer": "Case",
+      "explain": "完整配置名 mapUnderscoreToCamelCase；Spring Boot 中写 mybatis.configuration.map-underscore-to-camel-case: true（MyBatis-Plus 默认已开启）。\n它只解决“下划线↔驼峰”的命名差异，不解决类型转换与关联映射，那些仍要 resultMap 或 typeHandler。\n排错：字段对不上表现为“属性全是 null 但 SQL 返回了数据”，先确认列别名与属性名是否一致。",
+      "tag": "驼峰映射"
+    }
+  ]
+}

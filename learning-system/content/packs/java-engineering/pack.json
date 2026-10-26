@@ -1,0 +1,90 @@
+{
+  "id": "java-engineering",
+  "title": "Java 工程能力",
+  "version": "1.0.0",
+  "color": "#0ea5a4",
+  "description": "Maven 构建 / HTTP 协议 / Spring Boot 框架 / IOC 与 DI —— 从工程化到框架核心",
+  "stages": [
+    { "title": "阶段一 · 工程与协议基础", "topics": ["maven", "http"] },
+    { "title": "阶段二 · 框架核心", "topics": ["springboot", "ioc-di"] }
+  ],
+  "topics": [
+    {
+      "id": "maven",
+      "title": "Maven 构建工具",
+      "summary": "坐标、依赖管理、生命周期、多模块 —— 项目为什么能一键构建",
+      "tags": ["工程", "构建"],
+      "estMin": 60,
+      "lesson": "lessons/01-maven.md",
+      "quiz": "quiz/01-maven.json",
+      "nodes": [
+        { "id": "gav", "title": "坐标 GAV 与仓库", "key": true },
+        { "id": "dependency", "title": "依赖传递与冲突调解", "key": true },
+        { "id": "scope", "title": "依赖范围 scope", "key": true },
+        { "id": "lifecycle", "title": "生命周期与插件" },
+        { "id": "parent", "title": "parent 与 BOM 版本管理", "key": true },
+        { "id": "multimodule", "title": "多模块聚合与继承" },
+        { "id": "trouble", "title": "常见报错与排查" }
+      ]
+    },
+    {
+      "id": "http",
+      "title": "HTTP 协议",
+      "summary": "报文结构、状态码、缓存、Cookie、HTTPS、CORS —— 前后端之间的语言",
+      "tags": ["协议", "基础"],
+      "estMin": 80,
+      "lesson": "lessons/02-http.md",
+      "quiz": "quiz/02-http.json",
+      "nodes": [
+        { "id": "message", "title": "报文结构与 Header", "key": true },
+        { "id": "method", "title": "方法与幂等性", "key": true },
+        { "id": "status", "title": "状态码全解", "key": true },
+        { "id": "cache", "title": "强缓存与协商缓存", "key": true },
+        { "id": "cookie", "title": "Cookie 与 Session" },
+        { "id": "https", "title": "HTTPS 与 TLS 握手" },
+        { "id": "version", "title": "HTTP/1.1 vs HTTP/2 vs HTTP/3" },
+        { "id": "rest", "title": "RESTful 接口设计" }
+      ]
+    },
+    {
+      "id": "springboot",
+      "title": "Spring Boot",
+      "summary": "自动配置、REST 开发、校验、异常、AOP、事务、测试 —— 后端主战场",
+      "tags": ["框架", "核心"],
+      "estMin": 120,
+      "lesson": "lessons/03-springboot.md",
+      "quiz": "quiz/03-springboot.json",
+      "prereq": ["http"],
+      "nodes": [
+        { "id": "auto", "title": "自动配置原理与条件注解", "key": true },
+        { "id": "starter", "title": "起步依赖与配置文件" },
+        { "id": "rest", "title": "REST 注解与参数绑定", "key": true },
+        { "id": "valid", "title": "参数校验 @Valid", "key": true },
+        { "id": "response", "title": "统一响应与全局异常", "key": true },
+        { "id": "interceptor", "title": "拦截器 vs 过滤器" },
+        { "id": "aop", "title": "AOP 与横向关注点" },
+        { "id": "transaction", "title": "事务与失效场景", "key": true },
+        { "id": "test", "title": "测试 MockMvc" }
+      ]
+    },
+    {
+      "id": "ioc-di",
+      "title": "IOC 与 DI",
+      "summary": "控制反转、依赖注入、Bean 生命周期、循环依赖 —— Spring 的灵魂",
+      "tags": ["框架", "核心"],
+      "estMin": 90,
+      "lesson": "lessons/04-ioc-di.md",
+      "quiz": "quiz/04-ioc-di.json",
+      "prereq": ["springboot"],
+      "nodes": [
+        { "id": "concept", "title": "控制反转的本质", "key": true },
+        { "id": "container", "title": "容器与 BeanDefinition" },
+        { "id": "inject", "title": "三种注入方式与最佳实践", "key": true },
+        { "id": "lifecycle", "title": "Bean 作用域与生命周期", "key": true },
+        { "id": "config", "title": "@Configuration 与 @Bean" },
+        { "id": "circular", "title": "循环依赖与三级缓存", "key": true },
+        { "id": "conditional", "title": "条件装配" }
+      ]
+    }
+  ]
+}

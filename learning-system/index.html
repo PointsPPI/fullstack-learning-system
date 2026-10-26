@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>学习系统 · Learning System</title>
+<meta name="description" content="全栈知识学习系统：HTML CSS JS Vue Ajax Maven SpringBoot HTTP 分层解耦 IOC-DI MySQL JDBC MyBatis">
+
+<!-- 全部资源本地化：双击即可打开，不依赖网络 -->
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="vendor/hljs-light.css" id="hljs-theme-light">
+<link rel="stylesheet" href="vendor/hljs-dark.css" id="hljs-theme-dark" media="not all">
+
+<style>
+  /* 首屏加载态：内容 bundle 较大时先给个视觉反馈 */
+  #boot {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: var(--c-bg);
+    z-index: 999;
+    transition: opacity .3s;
+  }
+  #boot.done { opacity: 0; pointer-events: none; }
+  .boot-inner { text-align: center; }
+  .boot-logo {
+    width: 52px; height: 52px; margin: 0 auto 16px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #4f7cff, #8b5cf6);
+    display: grid; place-items: center;
+    color: #fff; font-size: 24px; font-weight: 800;
+    box-shadow: 0 8px 24px rgba(79,124,255,.35);
+    animation: boot-pulse 1.6s ease-in-out infinite;
+  }
+  .boot-text { font-size: 13px; color: var(--c-text-3); }
+  @keyframes boot-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(.94); opacity: .8; }
+  }
+  .flash { animation: flash-bg 1.2s ease; }
+  @keyframes flash-bg {
+    0% { background: var(--c-brand-weak); box-shadow: 0 0 0 4px var(--c-brand-weak); }
+    100% { background: transparent; }
+  }
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <div class="boot-inner">
+    <div class="boot-logo">学</div>
+    <div class="boot-text">正在加载学习内容…</div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- ========== 顶栏 ========== -->
+  <header class="topbar">
+    <button class="icon-btn only-mobile" id="btn-menu" type="button" aria-label="菜单" style="display:none">☰</button>
+
+    <a class="brand" href="#/">
+      <span class="brand-mark">学</span>
+      <span class="b-text">学习系统</span>
+      <span class="brand-sub">Learning System</span>
+    </a>
+
+    <div class="search" role="search">
+      <span class="s-icon">🔍</span>
+      <input id="global-search" type="search" placeholder="搜索知识点、主题…" autocomplete="off" spellcheck="false">
+      <kbd>/</kbd>
+      <div class="search-drop" hidden></div>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="icon-btn" id="btn-review" type="button" title="今日复习 (g r)" aria-label="今日复习">🔁</button>
+      <button class="icon-btn" id="btn-theme" type="button" title="切换主题" aria-label="切换主题">◐</button>
+    </div>
+  </header>
+
+  <!-- ========== 侧栏 ========== -->
+  <nav class="sidebar" id="sidebar" aria-label="学习目录"></nav>
+
+  <!-- ========== 主区 ========== -->
+  <main class="main"></main>
+</div>
+
+<!-- ========== 脚本：顺序很重要 ========== -->
+<script src="vendor/marked.umd.js"></script>
+<script src="vendor/highlight.min.js"></script>
+<!-- 内容 bundle：由 tools/build-content.mjs 生成 -->
+<script src="content.bundle.js"></script>
+<!-- 内核 -->
+<script src="assets/markdown.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/registry.js"></script>
+<script src="assets/app.js"></script>
+
+<script>
+/* 首屏：内容加载完就撤掉 loading */
+window.addEventListener('load', () => {
+  const boot = document.getElementById('boot');
+  if (boot) {
+    boot.classList.add('done');
+    setTimeout(() => boot.remove(), 320);
+  }
+  // 移动端菜单按钮
+  if (window.innerWidth <= 860) {
+    const b = document.getElementById('btn-menu');
+    if (b) b.style.display = 'grid';
+  }
+});
+
+/* 深色模式下切换 highlight.js 主题 */
+(function () {
+  function syncHljs() {
+    const isDark = document.documentElement.dataset.theme === 'dark' ||
+      (document.documentElement.dataset.theme === 'auto' &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const light = document.getElementById('hljs-theme-light');
+    const dark = document.getElementById('hljs-theme-dark');
+    if (light && dark) {
+      light.media = isDark ? 'not all' : 'all';
+      dark.media = isDark ? 'all' : 'not all';
+    }
+  }
+  window.addEventListener('DOMContentLoaded', syncHljs);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncHljs);
+  // 主题按钮点击后同步（app.js 会改 data-theme）
+  document.addEventListener('click', (e) => {
+    if (e.target.id === 'btn-theme') setTimeout(syncHljs, 30);
+  });
+})();
+
+/* 移动端菜单按钮显示逻辑 */
+window.addEventListener('resize', () => {
+  const b = document.getElementById('btn-menu');
+  if (b) b.style.display = window.innerWidth <= 860 ? 'grid' : 'none';
+});
+</script>
+</body>
+</html>

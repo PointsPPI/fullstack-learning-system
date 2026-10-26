@@ -1,0 +1,148 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "引入 spring-boot-starter-web 后，Tomcat、Spring MVC、Jackson 都自动就绪了。起步依赖（starter）的本质是？",
+      "options": [
+        "一个只有 pom 的“依赖合集”，把一组经过版本兼容性验证的依赖打包声明，自身不含业务代码",
+        "一个包含全部框架源码的巨型 jar",
+        "一段在启动时执行的自动配置脚本",
+        "一种特殊的 Maven scope"
+      ],
+      "answer": [0],
+      "explain": "starter 是纯 POM 工程（packaging=pom），内容就是一串 <dependencies> 声明 —— 它不含任何代码，作用是“一次声明，拿到一整套已验证兼容的依赖”。\n以 spring-boot-starter-web 为例，它聚合了 spring-boot-starter（核心 + 日志）、spring-boot-starter-json（Jackson）、spring-boot-starter-tomcat（内嵌容器）、spring-webmvc 等。\n版本从哪来：starter 自身不写 <version>，由 spring-boot-starter-parent → spring-boot-dependencies（BOM）统一锁定，这也是升级 Spring Boot 只改一个版本号就能带动整个依赖树的原因。\n两层要分清：starter 解决“依赖引入”，自动配置（@EnableAutoConfiguration + 条件注解）解决“Bean 装配”。",
+      "tag": "起步依赖"
+    },
+    {
+      "type": "single",
+      "q": "@SpringBootApplication 实际由哪三个注解组合而成？",
+      "options": [
+        "@SpringBootConfiguration + @EnableAutoConfiguration + @ComponentScan",
+        "@Configuration + @EnableWebMvc + @ComponentScan",
+        "@EnableAutoConfiguration + @MapperScan + @ComponentScan",
+        "@SpringBootConfiguration + @EnableCaching + @ComponentScan"
+      ],
+      "answer": [0],
+      "explain": "@SpringBootConfiguration 本质就是 @Configuration；@EnableAutoConfiguration 通过 AutoConfigurationImportSelector 读取 META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports（2.7+ 起的新位置，3.x 只认这个，老的 spring.factories 写法失效）导入自动配置类；@ComponentScan 默认扫描主类所在包及其子包。\n所以主类必须放在根包（如 com.example），放太深会导致 Controller/Service 扫描不到。",
+      "tag": "自动配置原理"
+    },
+    {
+      "type": "multi",
+      "q": "关于自动配置的生效条件，下列说法正确的有？",
+      "options": [
+        "@ConditionalOnClass 表示类路径上存在指定类才生效",
+        "@ConditionalOnMissingBean 表示容器里没有该类型 Bean 时才生效，从而实现“用户自定义优先”",
+        "@ConditionalOnProperty 按配置项（如 app.cache.enabled=true）决定是否生效",
+        "在两个自己写的业务 @Configuration 类之间，@ConditionalOnMissingBean 也能可靠地按书写顺序判断"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "典型例子：DataSourceAutoConfiguration 上标着 @ConditionalOnClass({DataSource.class, EmbeddedDatabaseType.class}) 和 @ConditionalOnMissingBean(DataSource.class) —— 类路径有驱动才生效，用户自己定义了 DataSource 就退回默认（HikariCP）。\n为什么第 4 项错：@ConditionalOnMissingBean 的稳定顺序只在“自动配置类之间”有保证（自动配置按 @AutoConfigureOrder/@AutoConfigureBefore/@AutoConfigureAfter 排序，且整体在用户配置之后解析）。普通配置类之间的注册顺序由组件扫描顺序决定，条件判断可能读到尚未注册的状态，产生“有时生效有时不生效”的幽灵 bug。\n排查利器：启动加 --debug，打印 ConditionEvaluationReport 的 Positive/Negative matches，能直接看到“哪个自动配置为什么没生效”。",
+      "tag": "条件注解"
+    },
+    {
+      "type": "single",
+      "q": "把 application.yml 里一组嵌套配置（app.mail.host / port / ssl）绑定成强类型对象，最佳实践是？",
+      "options": [
+        "@ConfigurationProperties(prefix = \"app.mail\") + @EnableConfigurationProperties 或 @ConfigurationPropertiesScan",
+        "每个字段写一个 @Value(\"${app.mail.host}\")",
+        "@PropertySource 只能读 properties，所以只能用 @Value",
+        "用 System.getenv 直接读环境变量"
+      ],
+      "answer": [0],
+      "explain": "@ConfigurationProperties 支持松散绑定（app.mail.host-name 与 hostName 都能绑）、复杂类型（List/Map/嵌套对象）、JSR-303 校验（类上加 @Validated + @NotNull 等）、IDE 元数据提示（需要 spring-boot-configuration-processor）。\n@Value 不支持松散绑定和复杂结构，写多了就是一堆散落的字符串；但在只需一两个值时更轻量。\n注意 @ConfigurationProperties 类要成为 Bean 才会生效：@Component、@EnableConfigurationProperties(Xxx.class) 或 @ConfigurationPropertiesScan 三者之一。",
+      "tag": "配置文件与绑定"
+    },
+    {
+      "type": "multi",
+      "q": "切换 Spring Boot 运行环境的正确方式有？",
+      "options": [
+        "spring.profiles.active=dev（写在配置文件里，或命令行 --spring.profiles.active=dev）",
+        "环境变量 SPRING_PROFILES_ACTIVE=prod",
+        "在 Bean 上加 @Profile(\"dev\")，按激活的 profile 决定是否装配",
+        "spring.config.import 用于导入额外配置文件，可替代 profile 切换"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "优先级（高→低）大致是：命令行参数 > Java 系统属性 > 环境变量 > profile 专属配置 > application.yml。\n2.4+ 推荐在单文件多文档块里用 spring.config.activate.on-profile: dev 声明，替代旧的 spring.profiles: dev。\n@Profile 是“装配层”的开关，spring.profiles.active 是“选择层”的开关；spring.config.import 只是把别的配置文件合并进来，不做环境选择，所以第 4 项错。",
+      "tag": "profile配置"
+    },
+    {
+      "type": "single",
+      "q": "接口 GET /users/1/orders?page=2，要把 1 绑定到 Long id、2 绑定到 int page，正确的映射写法是？",
+      "options": [
+        "@GetMapping(\"/users/{id}/orders\")，参数用 @PathVariable Long id 与 @RequestParam int page",
+        "@GetMapping(\"/users?id={id}/orders\")",
+        "@PostMapping(\"/users/{id}\") + @RequestBody",
+        "@RequestMapping(\"/users/1/orders\") 硬编码"
+      ],
+      "answer": [0],
+      "explain": "@PathVariable 取 URI 模板变量；@RequestParam 取查询串或表单参数（可省略 value，靠 -parameters 编译参数按名匹配，Spring Boot 父 POM 默认开启）；@RequestBody 读请求体并用 HttpMessageConverter（Jackson）反序列化，只能有一个；@ModelAttribute 用于表单对象绑定。\n常见坑：给 @RequestBody 传 form-urlencoded 会 415，应改用 @ModelAttribute 或 @RequestParam。",
+      "tag": "REST注解与参数绑定"
+    },
+    {
+      "type": "single",
+      "q": "Controller 写了 @Valid @RequestBody UserDTO dto，但校验完全不生效、也不抛异常，最可能的原因是？",
+      "options": [
+        "项目缺少校验实现依赖（spring-boot-starter-validation / hibernate-validator）",
+        "DTO 字段没有写 getter",
+        "Controller 方法不是 public",
+        "方法上没有加 @Transactional"
+      ],
+      "answer": [0],
+      "explain": "Spring Boot 2.3 起 web starter 不再传递引入 validation，只写 @Valid 会静默不生效 —— 这是升级后最典型的坑。\n其他失效原因：嵌套对象字段忘了再加 @Valid（不会级联）；把 @Valid 写在基本类型参数上；用 @Validated 时未指定 group，默认组不包含你的约束。\n校验失败：@RequestBody 抛 MethodArgumentNotValidException，表单/参数抛 BindException，统一在 @RestControllerAdvice 里处理成 400 + 字段错误列表。",
+      "tag": "@Valid校验"
+    },
+    {
+      "type": "single",
+      "q": "要实现“所有接口统一返回 {code, msg, data}”并集中处理异常，最合适的组合是？",
+      "options": [
+        "ResponseBodyAdvice 统一包装返回值 + @RestControllerAdvice 里的 @ExceptionHandler 集中处理异常",
+        "在每个 Controller 方法里手动 new Result 包装",
+        "用 Filter 拦截响应流手工拼 JSON",
+        "只写 @ExceptionHandler，返回值自动就是统一格式"
+      ],
+      "answer": [0],
+      "explain": "分工：ResponseBodyAdvice（beforeBodyWrite）在响应写出前统一包装正常返回值；@RestControllerAdvice + @ExceptionHandler 捕获异常并转换成同一 Result 结构。\n@RestControllerAdvice = @ControllerAdvice + @ResponseBody，所以返回值走 HttpMessageConverter（Jackson）而不是视图解析 —— 这也是它和 @ControllerAdvice 的唯一区别，后者要配合 @ResponseBody 才返回 JSON。\n异常优先级：越具体的异常类型越优先（BizException 先于 RuntimeException），同类则按 @Order；它只处理 Controller 抛出的异常，Filter 里抛的轮不到它。\n常见坑：ResponseBodyAdvice 若只对部分类型生效，要正确实现 supports()，否则会把 String 返回值也包装成对象；同时 @RestControllerAdvice 建议用 basePackages 限定范围，避免多模块互相污染。\n校验失败：@RequestBody 抛 MethodArgumentNotValidException，表单/参数抛 BindException，需单独 @ExceptionHandler 提取字段错误列表。",
+      "tag": "统一响应与全局异常"
+    },
+    {
+      "type": "multi",
+      "q": "关于拦截器（Interceptor）与过滤器（Filter），正确的说法有？",
+      "options": [
+        "Filter 属于 Servlet 规范层，能拦所有请求，但拿不到 HandlerMethod",
+        "Interceptor 由 DispatcherServlet 调用，preHandle 里能拿到 HandlerMethod 读取方法上的注解",
+        "afterCompletion 能拿到请求处理过程中的异常，适合做统一日志与耗时统计",
+        "在 Filter 里直接读 request.getInputStream() 后，Controller 里的 @RequestBody 仍能正常读到 body"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "执行顺序：Filter → DispatcherServlet → Interceptor.preHandle → Controller → postHandle → 视图渲染 → afterCompletion → Filter 返回。\n第 4 项是高频坑：Servlet 的请求体流只能读一次，Filter 里读完后 Controller 的 @RequestBody 会拿到空流或抛 \"Required request body is missing\"。要重复读必须包 ContentCachingRequestWrapper / 自定义 HttpServletRequestWrapper 缓存 body。\n选型：跨域、编码、请求体缓存、TraceId 透传用 Filter；登录/权限校验、需要读注解的场景用 Interceptor。",
+      "tag": "拦截器与过滤器"
+    },
+    {
+      "type": "single",
+      "q": "同类中 a() 直接调用本类的 @Transactional 方法 b()，事务不生效的根本原因是？",
+      "options": [
+        "自调用走的是 this，不经过 Spring 生成的代理对象，切面根本没被触发",
+        "b() 必须是 static 方法才行",
+        "@Transactional 不能用在同一个类里",
+        "没有配置事务管理器"
+      ],
+      "answer": [0],
+      "explain": "Spring AOP 默认是代理式（JDK 动态代理或 CGLIB 子类代理），只有“外部经代理调用”才会进入拦截器链。this.b() 是普通 Java 方法调用。\n三种解法：① 把 b() 拆到另一个 Bean；② 注入自身代理（@Lazy @Autowired XxxService self，或 AopContext.currentProxy() 并开启 @EnableAspectJAutoProxy(exposeProxy = true)）；③ 用 TransactionTemplate 编程式事务。\n同类问题也适用于 @Async、@Cacheable、自定义 AOP 注解。",
+      "tag": "AOP与事务失效"
+    },
+    {
+      "type": "judge",
+      "q": "@Transactional 默认对所有 Exception 都回滚，所以抛出受检异常（如 IOException）时数据库操作也会被撤销。",
+      "answer": false,
+      "explain": "默认只对 RuntimeException 和 Error 回滚，受检异常（checked exception）默认是提交的。\n源码依据：DefaultTransactionAttribute.rollbackOn 判断 ex instanceof RuntimeException || ex instanceof Error。\n所以业务里抛自定义受检异常时，必须显式写 @Transactional(rollbackFor = Exception.class)，否则“异常抛了、数据却提交了”是很难排查的生产事故。\n事务失效清单：非 public 方法；同类自调用（this 调用不走代理）；异常被 try-catch 吞掉；异常类型不在回滚范围；类没被 Spring 管理（自己 new 的）；数据库引擎不支持事务（MyISAM）；子线程中执行（事务绑定 ThreadLocal）。",
+      "tag": "事务回滚规则"
+    },
+    {
+      "type": "fill",
+      "q": "启动完整 Spring 容器做集成测试的注解是 @______Test（填 Test 之前的那一段类名）。",
+      "answer": "SpringBoot",
+      "explain": "@SpringBootTest 会加载完整上下文（可用 webEnvironment = RANDOM_PORT 起真实端口，配合 TestRestTemplate）；@WebMvcTest 只加载 MVC 层并自动配置 MockMvc，Service 用 @MockitoBean（3.4+，替代已废弃的 @MockBean）注入；@DataJpaTest / @MybatisTest 只测持久层并默认回滚。\n单测优先 Mockito 纯单测，集成测试控制数量，否则 CI 会很慢。",
+      "tag": "测试"
+    }
+  ]
+}

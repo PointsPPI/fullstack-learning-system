@@ -1,0 +1,142 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "控制反转（IOC）的本质是什么？",
+      "options": [
+        "把对象的创建与依赖装配的控制权，从业务代码转移给容器",
+        "用反射彻底替代 new",
+        "把接口改写成抽象类",
+        "把单例改成多例"
+      ],
+      "answer": [0],
+      "explain": "好莱坞原则：“别找我们，我们找你”。业务类不再自己 new 依赖、不再自己管生命周期，而是声明“我需要什么”，由容器在启动时装配好。\nDI（依赖注入）是 IOC 的实现手段（构造器 / setter / 字段注入）；IOC 容器分两层：BeanFactory（基础容器，懒加载）与 ApplicationContext（高级容器，含事件、国际化、资源加载、自动注册 BeanPostProcessor）。\nIOC 带来的是解耦与可测试性：单元测试可以注入 Mock 而不改一行业务代码。",
+      "tag": "IOC本质"
+    },
+    {
+      "type": "judge",
+      "q": "BeanDefinition 是 Bean 的“图纸”，描述类名、作用域、是否懒加载、依赖、初始化/销毁方法等元数据，容器据此创建实例。",
+      "answer": true,
+      "explain": "容器启动分两大阶段：① 解析配置（XML/注解/Java Config）生成 BeanDefinition 并注册到 BeanDefinitionRegistry；② 实例化单例、依赖注入、初始化、生成代理。\nBeanFactoryPostProcessor 在第一阶段改图纸（如占位符解析、@Configuration 的 CGLIB 增强），BeanPostProcessor 在第二阶段改实例（如 @Autowired 注入、AOP 代理）。\n理解这一点就能解释：为什么 @Value 解析发生在 Bean 创建之前、为什么在 BeanFactoryPostProcessor 里 getBean 会提前实例化。",
+      "tag": "BeanDefinition"
+    },
+    {
+      "type": "multi",
+      "q": "Spring 支持的依赖注入方式有？",
+      "options": [
+        "构造器注入",
+        "setter（设值）注入",
+        "字段注入（@Autowired 直接标在字段上）",
+        "继承注入"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "构造器注入对应 <constructor-arg> / 单构造器隐式注入；setter 注入对应 <property> / @Autowired 标在 setter 上；字段注入是 Spring 特有写法（靠反射写入，不经过 setter）。\n注意 @Autowired 标在字段或 setter 上时，本质是 AutowiredAnnotationBeanPostProcessor 在 postProcessProperties 阶段用反射完成注入。\n“继承注入”不是 Spring 的注入方式；继承只能让子类拿到父类已注入的字段。",
+      "tag": "三种注入方式"
+    },
+    {
+      "type": "single",
+      "q": "构造器注入相比字段注入的核心优势，下列哪项描述最准确？",
+      "options": [
+        "字段可声明 final 保证不可变与非空，依赖关系显式、易单测，且能暴露循环依赖",
+        "代码更短，能少写几行",
+        "性能更高，不需要反射",
+        "可以绕过 Spring 容器的管理"
+      ],
+      "answer": [0],
+      "explain": "构造器注入：final 字段 → 对象创建即完整、线程安全、不可能出现 NPE 式未注入；依赖在签名上明示；单测可直接 new（不必起容器）；循环依赖会在启动时报 BeanCurrentlyInCreationException 而不是被静默解决，从而逼你改设计。\n字段注入的全部优点只是“写得短”，代价是隐藏依赖、无法 final、必须靠反射/容器才能测试。\n官方从 4.3 起就推荐构造器注入，单构造器时 @Autowired 可省略。",
+      "tag": "构造器注入"
+    },
+    {
+      "type": "single",
+      "q": "A、B 互相依赖，且都用构造器注入，应用启动会发生什么？",
+      "options": [
+        "抛 BeanCurrentlyInCreationException，构造器注入的循环依赖无法解决",
+        "Spring 用三级缓存自动解决",
+        "自动降级为字段注入",
+        "正常启动，无影响"
+      ],
+      "answer": [0],
+      "explain": "三级缓存的前提是“能先把半成品实例的引用暴露出去”。构造器注入要求在 new 出 A 之前就必须先拿到 B，而 B 又要先拿到 A —— 死锁在实例化之前，没有对象可暴露。\nSpring Boot 2.6+ 默认 spring.main.allow-circular-references=false，字段注入的循环依赖也会直接报错（以前是默默解决）。\n正解：重构（抽出第三个 Bean / 用事件 / @Lazy 打断 / 改为 setter 注入）。",
+      "tag": "循环依赖"
+    },
+    {
+      "type": "single",
+      "q": "Spring 解决单例字段注入循环依赖的三级缓存及其获取顺序是？",
+      "options": [
+        "singletonObjects（成品）→ earlySingletonObjects（早期引用）→ singletonFactories（ObjectFactory）",
+        "singletonFactories → singletonObjects → earlySingletonObjects",
+        "earlySingletonObjects → singletonFactories → singletonObjects",
+        "只有一级 singletonObjects"
+      ],
+      "answer": [0],
+      "explain": "getSingleton 依次查：一级 singletonObjects（完整 Bean，可直接返回）→ 二级 earlySingletonObjects（已暴露的早期引用）→ 三级 singletonFactories（调 getObject() 生成早期引用，并升级到二级）。\n为什么要三级而不是两级：若 A 需要被 AOP 代理，早期引用必须是代理对象而不是原始对象，三级缓存里的 ObjectFactory 才有机会在这时创建代理；若提前生成代理又违背了“尽量晚创建代理”的设计。\nprototype 作用域不缓存，所以循环依赖直接失败。",
+      "tag": "三级缓存"
+    },
+    {
+      "type": "single",
+      "q": "关于 Bean 作用域，正确的是？",
+      "options": [
+        "singleton 是“每个容器一个实例”（默认），prototype 是每次 getBean 都新建",
+        "singleton 是 JVM 级单例，靠静态字段保证",
+        "prototype Bean 的销毁回调容器也会调用",
+        "request 作用域在不启动 Web 环境时同样可用"
+      ],
+      "answer": [0],
+      "explain": "singleton 的生命周期由容器托管（含销毁）；prototype 只负责创建和注入，容器不管理销毁（@PreDestroy 不会被调用），用多了要小心资源泄漏。\n把 prototype 注入到 singleton 只会注入一次 —— 后续都拿到同一个旧对象。正解：ObjectProvider<T>、@Lookup 方法、scoped proxy（@RequestScope + proxyMode）。\nWeb 作用域：request / session / application / websocket，仅在 Web 环境可用。",
+      "tag": "Bean作用域"
+    },
+    {
+      "type": "single",
+      "q": "下列 Bean 生命周期顺序正确的是？",
+      "options": [
+        "构造 → 属性注入 → Aware 回调 → BeanPostProcessor 前置 → @PostConstruct / afterPropertiesSet / init-method → BeanPostProcessor 后置 → 使用 → @PreDestroy / destroy",
+        "构造 → @PostConstruct → 属性注入 → 使用",
+        "@PostConstruct → 构造 → 属性注入",
+        "属性注入 → 构造 → AOP 代理 → 初始化"
+      ],
+      "answer": [0],
+      "explain": "完整链路：实例化（构造）→ 属性填充（populateBean）→ Aware 回调（BeanNameAware/BeanFactoryAware/ApplicationContextAware）→ BeanPostProcessor.postProcessBeforeInitialization → 初始化（@PostConstruct → InitializingBean.afterPropertiesSet → init-method）→ postProcessAfterInitialization → 使用 → 容器关闭时 @PreDestroy → DisposableBean.destroy → destroy-method。\nAOP 代理通常在 postProcessAfterInitialization 阶段由 AbstractAutoProxyCreator 生成，所以“Bean 是代理对象”这件事发生在初始化之后。\n记住“构造一定早于 @PostConstruct、且 @PostConstruct 晚于属性注入”，能解释大量 NPE 类问题。",
+      "tag": "Bean生命周期"
+    },
+    {
+      "type": "single",
+      "q": "@Configuration(proxyBeanMethods = false)（lite 模式）下，在配置类的一个方法里两次调用同一个 @Bean 方法，结果是？",
+      "options": [
+        "得到两个不同实例，因为方法就是普通 Java 调用",
+        "仍得到同一个单例，容器会拦截方法调用",
+        "抛异常",
+        "返回 null"
+      ],
+      "answer": [0],
+      "explain": "默认 full 模式用 CGLIB 增强配置类，方法调用被拦截并从容器取单例，保证“配置类内部互调”仍是同一实例（否则两次 new 会破坏依赖关系）。\nlite 模式不代理，方法调用就是普通调用 → 每次 new 一个新对象。它的好处是启动快、不需要 CGLIB（类可以 final），代价是不能在 @Bean 方法之间互调 —— 需要引用就直接把依赖作为方法参数传入。\nSpring Boot 自身的自动配置类大量使用 proxyBeanMethods = false。",
+      "tag": "@Configuration模式"
+    },
+    {
+      "type": "single",
+      "q": "同一类型存在多个 Bean 时，@Primary 与 @Qualifier 的关系是？",
+      "options": [
+        "@Primary 提供“类型级默认优先”，@Qualifier 按名称精确指定且优先级更高",
+        "@Qualifier 只能用在字段上，@Primary 只能用在类上，互不影响",
+        "两者互斥，不能同时出现在项目里",
+        "@Primary 只对 XML 定义的 Bean 生效"
+      ],
+      "answer": [0],
+      "explain": "解析顺序：先按类型找候选 → 多个候选用 @Qualifier/@Resource(name) 精确匹配名称 → 否则用 @Primary 指定的那个 → 否则按属性名与 beanName 匹配 → 仍不唯一则抛 NoUniqueBeanDefinitionException。\n工程技巧：注入 Map<String, PayService> 或 List<PayService> 拿到全部实现，用策略模式按 key 分发，比一堆 if-else + @Qualifier 优雅。",
+      "tag": "@Primary与@Qualifier"
+    },
+    {
+      "type": "judge",
+      "q": "@Resource 默认按名称（byName）装配，@Autowired 默认按类型（byType）装配，且 @Resource 来自 JDK 而非 Spring。",
+      "answer": true,
+      "explain": "@Resource 先按字段名找同名 Bean，找不到再退化为按类型；@Autowired 先按类型，配合 @Qualifier 才按名。\n@Resource 属于 JSR-250（jakarta.annotation），是 JDK 规范注解，由 CommonAnnotationBeanPostProcessor 处理，所以它没有 required 属性；@Autowired 是 Spring 自有注解，支持 required = false。\n@Inject（JSR-330）与 @Autowired 语义接近，同样不支持 required = false。",
+      "tag": "注入注解对比"
+    },
+    {
+      "type": "fill",
+      "q": "只有当类路径上存在指定类时才装配的条件注解是 @ConditionalOn______（填一个英文单词）。",
+      "answer": "Class",
+      "explain": "常用条件注解：@ConditionalOnClass / @ConditionalOnMissingClass（类路径）、@ConditionalOnBean / @ConditionalOnMissingBean（容器内 Bean）、@ConditionalOnProperty（配置项）、@ConditionalOnWebApplication（环境类型）、@ConditionalOnExpression（SpEL）。\n@Profile 本质也是条件装配，底层是 @Conditional(ProfileCondition)。\n自定义条件实现 Condition 接口，返回 boolean，可用 ConditionContext 拿到 BeanFactory、Environment、ClassLoader。",
+      "tag": "条件装配"
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "下列语句中，属于 DDL（数据定义语言）的是？",
+      "options": [
+        "ALTER TABLE users ADD COLUMN email VARCHAR(64)",
+        "UPDATE users SET email = 'a@b.com' WHERE id = 1",
+        "SELECT id, name FROM users WHERE age > 18",
+        "GRANT SELECT ON shop.* TO 'reader'@'%'"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "SQL 四大类：DDL（CREATE/ALTER/DROP/TRUNCATE，定义结构，隐式提交且不可回滚）、DML（INSERT/UPDATE/DELETE，操作数据，可回滚）、DQL（SELECT，查询）、DCL（GRANT/REVOKE，权限）。\n第 4 项 GRANT 属 DCL，不是 DDL —— 这是分类题最常见的混淆点。\n注意 TRUNCATE 虽常被当成“清空数据”，但它属 DDL：删除并重建表结构、不可回滚、会重置自增计数器；而 DELETE 是 DML，可回滚、可带 WHERE、逐行删除更慢。",
+      "tag": "DDL/DML/DQL"
+    },
+    {
+      "type": "single",
+      "q": "在 users(id, name, age) 表上建了联合索引 idx_ab(name, age)，下列哪条 SQL 能用上该索引？",
+      "options": [
+        "SELECT * FROM users WHERE name = 'Tom'",
+        "SELECT * FROM users WHERE age = 20",
+        "SELECT * FROM users WHERE name LIKE '%om'",
+        "SELECT * FROM users WHERE UPPER(name) = 'TOM'"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "最左前缀原则：联合索引 (name, age) 能用于 name、name+age，跳过 name 直接查 age 用不上（B+ 树按 name 有序，age 只在其内部才有序）。\nLIKE '%om' 左侧有通配符无法利用有序性（只有 LIKE 'Tom%' 可以走范围扫描）；对索引列套函数 UPPER(name) 会让索引失效，应改为函数索引或改写查询条件。\n判断依据看 EXPLAIN 的 key 列（实际用的索引）与 type（ref / range / index / ALL）。",
+      "tag": "最左前缀"
+    },
+    {
+      "type": "judge",
+      "q": "InnoDB 中二级索引的叶子节点直接存放整行数据，所以按二级索引查询不需要回表。",
+      "answer": false,
+      "explain": "恰好相反：InnoDB 是聚簇索引结构，表数据本身按主键组织，主键索引（聚簇索引）的叶子存整行；二级索引叶子只存“索引列 + 主键值”。\n所以 SELECT * 命中二级索引后，还要拿主键值再查一次聚簇索引 —— 这就是回表，也是二级索引查询比主键查询慢的根本原因。\n避免回表的办法是覆盖索引：查询的列全部包含在索引里（如 SELECT id, name 而索引是 (name)），EXPLAIN 的 Extra 会显示 Using index。",
+      "tag": "索引原理与回表"
+    },
+    {
+      "type": "single",
+      "q": "要查“下过订单的用户”，下列哪种写法通常最优？",
+      "options": [
+        "SELECT * FROM users u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id)",
+        "SELECT * FROM users u WHERE u.id IN (SELECT user_id FROM orders)",
+        "SELECT * FROM users u, orders o WHERE u.id = o.user_id",
+        "SELECT * FROM users u WHERE u.id = (SELECT user_id FROM orders)"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "EXISTS 是相关子查询，语义为“是否存在”，一旦命中即可短路，且不需要把子查询结果物化 —— 当子查询表大、外表小时最优。\n第 2 项 IN 子查询：MySQL 5.6+ 会做半连接（semi-join）优化，通常也不错，但若子查询返回大量值，历史上存在物化开销；优化器对 IN 与 EXISTS 常能改写成等价计划，实际应以 EXPLAIN 为准。\n第 3 项是隐式内连接，会产生重复行（一个用户多张订单），必须加 DISTINCT 才语义正确，且笛卡尔式结果集更大。\n第 4 项标量子查询在返回多行时直接报错 Subquery returns more than 1 row。",
+      "tag": "子查询"
+    },
+    {
+      "type": "single",
+      "q": "统计每个部门薪资总和，只保留总和超过 100000 的部门并按总和降序，正确的 SQL 是？",
+      "options": [
+        "SELECT dept_id, SUM(salary) s FROM emp GROUP BY dept_id HAVING SUM(salary) > 100000 ORDER BY s DESC",
+        "SELECT dept_id, SUM(salary) s FROM emp WHERE SUM(salary) > 100000 GROUP BY dept_id ORDER BY s DESC",
+        "SELECT dept_id, SUM(salary) s FROM emp GROUP BY dept_id WHERE SUM(salary) > 100000 ORDER BY s DESC",
+        "SELECT dept_id, SUM(salary) FROM emp HAVING SUM(salary) > 100000"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "逻辑执行顺序：FROM → ON → JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT。\nWHERE 在分组之前过滤“行”，因此不能用聚合函数（第 2 项会报 Invalid use of group function）；HAVING 在分组之后过滤“组”，可以用 SUM/COUNT 等聚合值。\n性能要点：能写在 WHERE 的条件不要放 HAVING（先过滤行再做聚合，参与聚合的数据更少）。别名 s 可在 ORDER BY 中使用，但 WHERE/HAVING 中一般不能引用 SELECT 起的别名。",
+      "tag": "GROUP BY与HAVING"
+    },
+    {
+      "type": "multi",
+      "q": "关于 JOIN 的几种类型，下列说法正确的有？",
+      "options": [
+        "INNER JOIN 只返回两表都匹配上的行",
+        "LEFT JOIN 以左表为主，右表无匹配时右表字段补 NULL",
+        "LEFT JOIN 后用 WHERE 对右表字段加非空条件（如 WHERE b.id IS NOT NULL），语义上会退化成 INNER JOIN",
+        "CROSS JOIN 会按 ON 条件过滤，与 INNER JOIN 完全等价"
+      ],
+      "answer": [
+        0,
+        1,
+        2
+      ],
+      "explain": "五类连接：INNER（交集）、LEFT（左全 + 右匹配）、RIGHT（右全 + 左匹配）、FULL OUTER（MySQL 不支持，需 LEFT UNION RIGHT 模拟）、CROSS（笛卡尔积）。\n第 3 项是最隐蔽的坑：LEFT JOIN 后写 WHERE b.status = 1，会把右表为 NULL 的行过滤掉，结果与 INNER JOIN 相同；想保留左表全部行，条件必须写在 ON 子句里。\nCROSS JOIN 没有 ON 条件，直接产生笛卡尔积（不加 ON 的 INNER JOIN 也等价于此），它不会按 ON 过滤，所以第 4 项错。",
+      "tag": "JOIN五种"
+    },
+    {
+      "type": "single",
+      "q": "执行 SELECT * FROM orders WHERE status = 1 ORDER BY id LIMIT 100000, 10 很慢，最有效的优化是？",
+      "options": [
+        "延迟关联/键集分页：先取主键再回表，如 SELECT o.* FROM orders o JOIN (SELECT id FROM orders WHERE status=1 ORDER BY id LIMIT 100000,10) t ON o.id=t.id",
+        "把 LIMIT 的第二个参数改大一点",
+        "给 status 加索引就够了",
+        "把 SELECT * 换成 SELECT count(*)"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "LIMIT offset, n 的代价在 offset：MySQL 必须扫描并丢弃前 100000 行（还要回表 10 万次）。\n优化思路：① 延迟关联 —— 先在索引上翻页拿主键（覆盖索引，不回表），再回表取 10 行；② 键集/游标分页 WHERE id > lastId ORDER BY id LIMIT 10，翻页不随页码变慢，最适合无限滚动；③ 业务上限制最大页数。\n深分页是慢查询治理的经典场景，配合 EXPLAIN 看 rows 与 Extra 里的 Using filesort。",
+      "tag": "分页与深分页"
+    },
+    {
+      "type": "multi",
+      "q": "关于事务 ACID 与隔离级别，下列说法正确的有？",
+      "options": [
+        "原子性（A）由 undo log 保证，失败时回滚",
+        "持久性（D）由 redo log（配合 WAL 与刷盘策略）保证",
+        "读未提交（READ UNCOMMITTED）会出现脏读；读已提交（READ COMMITTED）解决了脏读但仍有不可重复读",
+        "一致性（C）完全由数据库自动保证，与应用逻辑无关"
+      ],
+      "answer": [
+        0,
+        1,
+        2
+      ],
+      "explain": "A 靠 undo log；D 靠 redo log（innodb_flush_log_at_trx_commit=1 时每次提交刷盘）；I 靠锁与 MVCC；C 是最终目标，需要数据库约束（主键/外键/唯一）与应用逻辑共同保证 —— 转账扣款和加款必须同事务，数据库不会替你判断业务规则。\n并发现象与隔离级别：脏读（读到未提交）→ 不可重复读（同一行两次读不同）→ 幻读（同一范围两次读行数不同）。RU 三者都可能；RC 解决脏读；RR 再解决不可重复读（MySQL 默认，并用 Next-Key Lock 抑制幻读）；SERIALIZABLE 全部解决但并发最差。",
+      "tag": "ACID与隔离级别"
+    },
+    {
+      "type": "single",
+      "q": "线上出现慢查询，定位与治理的正确顺序是？",
+      "options": [
+        "开启 slow_query_log 并设置 long_query_time → 用 mysqldumpslow / pt-query-digest 聚合出 TOP SQL → EXPLAIN 看 type/key/rows/Extra → 加索引或改写 SQL → 回归验证",
+        "直接给所有字段都加索引，索引越多越快",
+        "把 long_query_time 调大到 10 秒，慢查询数量就归零了",
+        "重启数据库实例，问题自然消失"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "慢查询日志是起点：slow_query_log=ON、long_query_time=1，log_queries_not_using_indexes 视情况开启（会产生大量日志）。\n聚合分析用 mysqldumpslow 或 pt-query-digest，按“总耗时 = 次数 × 单次耗时”排序，优先治高频且单次也慢的 SQL。\nEXPLAIN 是定位工具，重点看四列：type（system > const > eq_ref > ref > range > index > ALL，ALL 即全表扫描）、key（实际用的索引，NULL 表示没用）、rows（预估扫描行数）、Extra（Using filesort 表示需额外排序，Using temporary 常见于 GROUP BY/UNION，Using index 说明覆盖索引不需要回表）。\n治理手段按代价从低到高：加/改索引（注意最左前缀与区分度）→ 改写 SQL（避免 SELECT *、深分页、在列上套函数）→ 调整表结构（冗余/归档/分表）→ 加缓存。\n“全字段加索引”反而不利：写入放大、优化器选择变差、占用大量空间。",
+      "tag": "EXPLAIN与慢查询"
+    },
+    {
+      "type": "fill",
+      "q": "要在每个部门内按薪资降序排名并取第一名，可用 SELECT * FROM (SELECT e.*, ______() OVER (PARTITION BY dept_id ORDER BY salary DESC) rn FROM emp e) t WHERE rn=1，填函数名。",
+      "answer": "ROW_NUMBER",
+      "explain": "ROW_NUMBER() 在 PARTITION BY 分组内排序打唯一序号，外层过滤 rn=1 取每组第一。\n对比：RANK() 让并列第一都保留但后续名次跳号（1,1,3）；DENSE_RANK() 并列不跳号（1,1,2）。选哪个取决于“并列第一是否都要”。\n窗口函数的关键价值是不折叠行（与 GROUP BY 相反），所以能在保留明细的同时做组内排名、累计求和（SUM() OVER）、同比环比（LAG/LEAD）。",
+      "tag": "窗口函数"
+    },
+    {
+      "type": "single",
+      "q": "订单表里冗余存了商品名称（商品表已单独存在），这种做法属于？",
+      "options": [
+        "反范式设计，用冗余换查询性能，代价是需要应用层保证冗余数据一致",
+        "违反第一范式，字段不原子",
+        "标准的三范式设计",
+        "会导致无法建立主键"
+      ],
+      "answer": [
+        0
+      ],
+      "explain": "范式化（1NF 原子、2NF 无部分依赖、3NF 无传递依赖）能消除冗余与更新异常，但多表 JOIN 有成本。\n反范式是刻意的性能取舍：订单快照存商品名与下单时价格，既避免每次查订单都 JOIN 商品表，又保证“历史订单显示的是下单当时的信息”（商品改名不影响历史订单）—— 这里的冗余其实是业务正确性要求。\n代价是冗余一致性要靠应用层维护（或干脆只写不改）。所以“是否反范式”要看读写比与业务语义，不是纯粹的对错。",
+      "tag": "范式与反范式"
+    },
+    {
+      "type": "judge",
+      "q": "SQL 注入无法通过 PreparedStatement 的参数占位符（?）彻底防范，因为占位符本质上只是文本替换。",
+      "answer": false,
+      "explain": "恰恰相反：PreparedStatement 是预编译，SQL 结构先发给数据库服务端解析定型，参数只作为“数据”绑定，永远不会被当作 SQL 语法解析，所以能彻底切断注入。\n字符串拼接 \"WHERE name='\" + name + \"'\" 才是注入入口，输入 ' OR '1'='1 即可绕过。\n补充防线：白名单校验动态表名/列名（这些位置不能用 ? 绑定）、最小权限账号、输入校验、ORM 的 #{} 而非 ${}。\n注意占位符不能用于标识符位置，写 ORDER BY ? 只会按常量排序，不会按列名排序。",
+      "tag": "SQL注入防护"
+    }
+  ]
+}

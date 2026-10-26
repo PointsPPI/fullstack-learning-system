@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>实验 01 · 一次请求的完整旅程</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --surface: #fff; --border: #e3e6ef; --text: #1a1f36;
+    --text2: #545a75; --text3: #868da8; --brand: #4f7cff; --ok: #16a34a;
+    --warn: #d97706; --danger: #dc2626; --code-bg: #f8f9fc;
+    --mono: "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1218; --surface:#171b23; --border:#2a3040; --text:#e6e9f2;
+      --text2:#a8b0c4; --text3:#737c93; --code-bg:#12161d; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    font: 15px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    max-width: 980px; margin-inline: auto;
+  }
+  h1 { font-size: 26px; margin: 0 0 8px; }
+  h2 { font-size: 18px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .lede { color: var(--text2); margin: 0 0 24px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+  .stage {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 14px; border-left: 3px solid var(--brand);
+    background: var(--code-bg); border-radius: 0 8px 8px 0; margin-bottom: 10px;
+  }
+  .stage-n {
+    flex: 0 0 26px; height: 26px; display: grid; place-items: center;
+    border-radius: 50%; background: var(--brand); color: #fff;
+    font-size: 12px; font-weight: 700;
+  }
+  .stage-b { flex: 1; min-width: 0; }
+  .stage-t { font-weight: 650; margin-bottom: 2px; }
+  .stage-d { font-size: 13px; color: var(--text2); }
+  .stage-code {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; margin-top: 6px;
+    overflow-x: auto; white-space: pre;
+  }
+  button {
+    font: inherit; padding: 8px 18px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    transition: all .18s;
+  }
+  button:hover { border-color: var(--brand); color: var(--brand); }
+  button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  button.primary:hover { filter: brightness(1.1); color: #fff; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .log {
+    font-family: var(--mono); font-size: 12px; line-height: 1.6;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; max-height: 320px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .log .t { color: var(--text3); }
+  .log .ok { color: var(--ok); }
+  .log .err { color: var(--danger); }
+  .log .info { color: var(--brand); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  code { font-family: var(--mono); font-size: .9em; background: var(--code-bg);
+    border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; }
+  .note { padding: 12px 14px; border-radius: 8px; font-size: 14px;
+    background: color-mix(in srgb, var(--warn) 10%, transparent);
+    border-left: 3px solid var(--warn); margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--code-bg); font-weight: 650; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>🧪 一次请求的完整旅程</h1>
+<p class="lede">
+  从你在浏览器输入 URL 到看到页面，中间发生了什么？这一页把 13 个主题串成一条链，
+  每一环都能点开看真实代码。**这是整个学习系统的主干。**
+</p>
+
+<h2>① 点击按钮，观察 12 个阶段</h2>
+<div class="card">
+  <div class="row mb">
+    <button class="primary" id="btn-run">▶ 发起一次真实请求</button>
+    <button id="btn-clear">清空日志</button>
+  </div>
+  <p style="font-size:13px;color:var(--text2);margin:12px 0 0">
+    默认打到后端 <code>http://127.0.0.1:8080</code>。
+    若后端未启动，会在第 9 阶段失败 —— 这也是真实世界的样子。
+  </p>
+  <div class="row" style="margin-top:12px">
+    <label style="font-size:13px;color:var(--text2)">请求地址</label>
+    <input id="url" value="http://127.0.0.1:8080/api/books?page=1&size=3"
+           style="flex:1;min-width:260px;padding:7px 10px;border:1px solid var(--border);
+                  border-radius:8px;background:var(--surface);color:var(--text);font-family:var(--mono);font-size:13px">
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 12px;font-size:15px">执行日志</h3>
+  <div class="log" id="log"><span class="t">等待发起请求…</span></div>
+</div>
+
+<h2>② 12 个阶段的说明</h2>
+
+<div class="stage"><div class="stage-n">1</div><div class="stage-b">
+  <div class="stage-t">URL 解析 → DNS 查询</div>
+  <div class="stage-d">把 <code>127.0.0.1</code> 或域名换成 IP 地址。域名要走 DNS，本机地址直接用。</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">2</div><div class="stage-b">
+  <div class="stage-t">TCP 三次握手</div>
+  <div class="stage-d">浏览器与服务器建立可靠连接：SYN → SYN+ACK → ACK。这一步有网络往返开销，所以需要连接复用（Keep-Alive）。</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">3</div><div class="stage-b">
+  <div class="stage-t">构造 HTTP 请求报文</div>
+  <div class="stage-d">请求行 + 请求头 + 请求体。看 DevTools 的 Network 面板能看到原文。</div>
+  <div class="stage-code">GET /api/books?page=1&size=3 HTTP/1.1
+Host: 127.0.0.1:8080
+Accept: application/json
+Origin: http://localhost:5173</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">4</div><div class="stage-b">
+  <div class="stage-t">服务端接收 → Tomcat → Filter 链</div>
+  <div class="stage-d">Tomcat 解析报文成 <code>HttpServletRequest</code>。Filter 在这一层（编码、CORS、日志追踪 ID）。<b>CORS 预检（OPTIONS）也在这一层被处理。</b></div>
+</div></div>
+
+<div class="stage"><div class="stage-n">5</div><div class="stage-b">
+  <div class="stage-t">DispatcherServlet 路由匹配</div>
+  <div class="stage-d">Spring MVC 根据路径找 Controller 方法，同时执行 Interceptor 的 <code>preHandle</code>（鉴权、限流）。</div>
+  <div class="stage-code">@GetMapping("/api/books")
+public R&lt;PageResult&lt;BookVO&gt;&gt; list(@Valid BookQueryDTO query)</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">6</div><div class="stage-b">
+  <div class="stage-t">参数绑定 + 校验</div>
+  <div class="stage-d">把 <code>?page=1&size=3</code> 绑定到 DTO 的 setter，然后执行 <code>@Valid</code> 校验。失败 → 400 + 字段级错误。</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">7</div><div class="stage-b">
+  <div class="stage-t">Controller → Service（IOC 注入）</div>
+  <div class="stage-d">Controller 不 <code>new</code> Service，是容器在启动时通过构造器注入的。这就是 IOC/DI 的实际作用。</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">8</div><div class="stage-b">
+  <div class="stage-t">Service 业务逻辑</div>
+  <div class="stage-d">白名单校验排序字段（防 ${} 注入）→ 查总数 → 查当前页 → 批量取分类名（避免 N+1）→ 组装 VO。</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">9</div><div class="stage-b">
+  <div class="stage-t">Mapper → MyBatis → SQL</div>
+  <div class="stage-d">MyBatis 把接口方法翻译成 SQL，用 <code>#{(预编译)}</code> 传参，结果集按驼峰规则映射成 Entity。<b>这一步连的是真 MySQL。</b></div>
+  <div class="stage-code">SELECT id, title, author, price, stock FROM book
+&lt;where&gt; ... &lt;/where&gt;
+ORDER BY id desc LIMIT ? OFFSET ?</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">10</div><div class="stage-b">
+  <div class="stage-t">MySQL 执行 → 返回结果集</div>
+  <div class="stage-d">InnoDB 走索引（或全表扫），MVCC 保证读取一致性，返回行数据。</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">11</div><div class="stage-b">
+  <div class="stage-t">响应序列化 + 统一包装</div>
+  <div class="stage-d">Service 返回 <code>R&lt;PageResult&lt;BookVO&gt;&gt;</code>，Jackson 序列化成 JSON，加上 CORS 响应头。</div>
+  <div class="stage-code">{"code":0,"message":"ok","data":{"list":[...],"total":12},"timestamp":...}</div>
+</div></div>
+
+<div class="stage"><div class="stage-n">12</div><div class="stage-b">
+  <div class="stage-t">浏览器接收 → JS 渲染</div>
+  <div class="stage-d">Ajax 拿到 JSON（不刷新页面）→ 判断 <code>code === 0</code> → 更新 DOM（原生）或改响应式数据（Vue）。</div>
+</div></div>
+
+<h2>③ 13 个主题在这条链上的位置</h2>
+<div class="card">
+<table>
+  <thead><tr><th>阶段</th><th>涉及的主题</th><th>关键知识点</th></tr></thead>
+  <tbody>
+    <tr><td>1–3</td><td>HTTP</td><td>报文结构、方法、Header、DNS、TCP</td></tr>
+    <tr><td>4–6</td><td>HTTP / SpringBoot / Ajax</td><td>状态码、CORS 预检、拦截器 vs 过滤器、参数绑定、校验</td></tr>
+    <tr><td>7</td><td>IOC / DI</td><td>构造器注入、Bean 装配</td></tr>
+    <tr><td>8</td><td>分层解耦</td><td>Service 职责、DTO/VO 转换、事务边界</td></tr>
+    <tr><td>9–10</td><td>MyBatis / JDBC / MySQL</td><td>Mapper 映射、#{} 预编译、索引、事务</td></tr>
+    <tr><td>11</td><td>SpringBoot</td><td>统一响应、全局异常、Jackson 序列化</td></tr>
+    <tr><td>12</td><td>Ajax / Vue / JS</td><td>fetch、异步、DOM 更新、响应式</td></tr>
+    <tr><td>全程</td><td>Maven</td><td>依赖解析、打包、生命周期</td></tr>
+    <tr><td>界面</td><td>HTML / CSS</td><td>语义化、盒模型、Grid/Flex 布局</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+  <b>怎么用这一页</b>：先点按钮跑一次，把日志从头看到尾。然后去
+  <code>project/bookhub/src/main/java/com/bookhub/</code> 里按包名对照着找代码。
+  每读一个类，回到这一页看它在第几阶段。
+</div>
+
+<script>
+const logEl = document.getElementById('log');
+const btnRun = document.getElementById('btn-run');
+const btnClear = document.getElementById('btn-clear');
+const urlEl = document.getElementById('url');
+
+let t0 = 0;
+function now() {
+  const ms = performance.now() - t0;
+  return `+${ms.toFixed(1).padStart(7)}ms`;
+}
+function log(msg, cls = '') {
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="t">${now()}</span>  <span class="${cls}">${escapeHtml(msg)}</span>`;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function clearLog() { logEl.innerHTML = ''; }
+
+async function run() {
+  btnRun.disabled = true;
+  clearLog();
+  t0 = performance.now();
+
+  const url = urlEl.value.trim();
+  const origin = new URL(url).origin;
+
+  log('═══ 开始 ───', 'info');
+  log(`① URL: ${url}`);
+  log(`   协议=${new URL(url).protocol}  主机=${new URL(url).host}  路径=${new URL(url).pathname}`, '');
+  log(`   本页 origin = ${location.origin}`);
+  log(`   同源？${origin === location.origin ? '是' : '否 → 会触发 CORS'}`,
+      origin === location.origin ? 'ok' : 'err');
+
+  log('② DNS：127.0.0.1 直接是 IP，无需解析');
+  log('   （若是域名，这里会是一次 DNS 查询，通常走系统缓存 → hosts → DNS 服务器）');
+
+  log('③ TCP 三次握手（由浏览器内核完成，JS 看不到）');
+  log('   SYN → SYN+ACK → ACK，成功后连接进入 HTTP 层');
+
+  log('④ 构造请求报文：');
+  log(`   GET ${new URL(url).pathname}${new URL(url).search} HTTP/1.1`);
+  log(`   Host: ${new URL(url).host}`);
+  log('   Accept: application/json');
+
+  log('⑤ 发出请求…');
+  log('（下面这些阶段发生在服务器内部，浏览器只能看到耗时）', 'info');
+
+  const t1 = performance.now();
+  let res, json, err = null;
+  try {
+    res = await fetch(url, { headers: { Accept: 'application/json' } });
+    json = await res.json();
+  } catch (e) {
+    err = e;
+  }
+  const rtt = performance.now() - t1;
+
+  if (err) {
+    log(`✗ 请求失败：${err.message}`, 'err');
+    log('');
+    log('可能原因（按概率排序）：', 'info');
+    log('  1. 后端没启动 → 在 project/bookhub 执行 mvnw.cmd spring-boot:run');
+    log('  2. 端口被占用 / 改过端口 → 检查 application.yml 的 server.port');
+    log('  3. 本页用 file:// 打开，被 CORS 拦 → 用 node tools/serve.mjs 起服务');
+    log('  4. 跨域但后端没配 CORS → 检查 CorsConfig');
+    log('');
+    log('这四种错误正是「Ajax + HTTP + SpringBoot」三章要解决的问题。', 'info');
+    btnRun.disabled = false;
+    return;
+  }
+
+  log(`⑥ 收到响应，往返耗时 ${rtt.toFixed(1)}ms`, 'ok');
+  log(`   HTTP ${res.status} ${res.statusText}`, res.ok ? 'ok' : 'err');
+  log('   响应头：');
+  for (const [k, v] of res.headers) {
+    if (['content-type', 'content-length', 'access-control-allow-origin',
+         'access-control-allow-credentials', 'cache-control', 'date'].includes(k.toLowerCase())) {
+      log(`     ${k}: ${v}`);
+    }
+  }
+
+  log('⑦ Tomcat → Filter → DispatcherServlet（服务端，JS 不可见）');
+  log('⑧ 拦截器 preHandle → Controller → 参数绑定 → @Valid（服务端）');
+  log('⑨ IOC 注入的 Service 执行 → ');
+  log('⑩ MyBatis 生成 SQL → MySQL 执行（服务端）');
+
+  log('⑪ 响应体（截断到 600 字）：');
+  const bodyStr = JSON.stringify(json, null, 2);
+  bodyStr.split('\n').slice(0, 22).forEach(l => log('   ' + l));
+  if (bodyStr.split('\n').length > 22) log('   …（省略）');
+
+  log('⑫ 前端处理：', 'info');
+  log(`   业务码 code = ${json.code} ${json.code === 0 ? '→ 成功' : '→ 业务失败'}`,
+      json.code === 0 ? 'ok' : 'err');
+  if (json.code === 0 && json.data) {
+    if (json.data.list) {
+      log(`   列表 ${json.data.list.length} 条，共 ${json.data.total} 条，第 ${json.data.page}/${json.data.pages} 页`);
+      log('   第 1 条： ' + JSON.stringify(json.data.list[0]).slice(0, 200));
+    } else {
+      log('   详情：' + JSON.stringify(json.data).slice(0, 300));
+    }
+  } else if (json.message) {
+    log(`   错误信息：${json.message}`, 'err');
+  }
+
+  log('');
+  log('═══ 完成 ═══', 'ok');
+  log(`总耗时 ${(performance.now() - t0).toFixed(1)}ms（其中网络往返 ${rtt.toFixed(1)}ms）`);
+  btnRun.disabled = false;
+}
+
+btnRun.addEventListener('click', run);
+btnClear.addEventListener('click', clearLog);
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  BookMapper.xml —— 图书持久层的 SQL
+  学习点对照：
+    · namespace 必须等于接口全限定名（否则 BindingException）
+    · <sql> 片段复用，保证 count 与 list 条件一致（PageHelper 分页正确的关键）
+    · 动态 SQL：<where> 自动去前导 AND
+    · 并发安全：decreaseStock 的 WHERE stock > 0 必须在 SQL 里
+-->
+<mapper namespace="com.bookhub.mapper.BookMapper">
+
+    <!-- ══════════ 可复用片段 ══════════ -->
+    <sql id="baseColumns">
+        id, title, author, isbn, category_id, price, stock, total, status, remark, created_at, updated_at
+    </sql>
+
+    <sql id="searchWhere">
+        <where>
+            <if test="q.kw != null and q.kw != ''">
+                AND (title LIKE CONCAT('%', #{q.kw}, '%') OR author LIKE CONCAT('%', #{q.kw}, '%'))
+            </if>
+            <if test="q.categoryId != null">
+                AND category_id = #{q.categoryId}
+            </if>
+            <if test="q.status != null">
+                AND status = #{q.status}
+            </if>
+        </where>
+    </sql>
+
+    <!-- ══════════ 查询 ══════════ -->
+    <!--
+      resultType 用实体 + map-underscore-to-camel-case，
+      数据库列 category_id → 属性 categoryId 自动映射
+    -->
+    <select id="findById" resultType="com.bookhub.entity.Book">
+        SELECT <include refid="baseColumns"/>
+        FROM book
+        WHERE id = #{id}
+    </select>
+
+    <!--
+      排序使用 ${} —— 因为 ORDER BY 的列名无法用 #{} 参数化。
+      安全性由 Service 层的白名单校验保证（sortBy 只允许 id/title/author/price/created_at）
+      这是 ${} 的两处合法用途之一，另一处是动态表名。
+    -->
+    <select id="search" resultType="com.bookhub.entity.Book">
+        SELECT <include refid="baseColumns"/>
+        FROM book
+        <include refid="searchWhere"/>
+        ORDER BY ${q.sortBy} ${q.sortDir}
+        LIMIT #{q.size} OFFSET #{q.offset}
+    </select>
+
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(*) FROM book
+        <include refid="searchWhere"/>
+    </select>
+
+    <select id="existsByIsbn" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM book WHERE isbn = #{isbn}
+    </select>
+
+    <select id="hasActiveBorrow" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM borrow WHERE book_id = #{bookId} AND return_date IS NULL
+    </select>
+
+    <select id="countBorrowByBook" resultType="int">
+        SELECT COUNT(*) FROM borrow WHERE book_id = #{bookId}
+    </select>
+
+    <select id="countBorrowing" resultType="int">
+        SELECT COUNT(*) FROM borrow WHERE book_id = #{bookId} AND return_date IS NULL
+    </select>
+
+    <!-- ══════════ 写入 ══════════ -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO book (title, author, isbn, category_id, price, stock, total, status, remark)
+        VALUES (#{title}, #{author}, #{isbn}, #{categoryId}, #{price}, #{stock}, #{total}, #{status}, #{remark})
+    </insert>
+
+    <!--
+      <set> 自动去掉最后多余的逗号；
+      只更新非 null 字段（部分更新语义，符合 PATCH/PUT 混合的实用做法）
+    -->
+    <update id="update">
+        UPDATE book
+        <set>
+            <if test="d.title != null">title = #{d.title},</if>
+            <if test="d.author != null">author = #{d.author},</if>
+            <if test="d.isbn != null">isbn = #{d.isbn},</if>
+            <if test="d.categoryId != null">category_id = #{d.categoryId},</if>
+            <if test="d.price != null">price = #{d.price},</if>
+            <if test="d.total != null">total = #{d.total},</if>
+            <if test="d.status != null">status = #{d.status},</if>
+            <if test="d.remark != null">remark = #{d.remark},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM book WHERE id = #{id}
+    </delete>
+
+    <!--
+      ★ 原子扣减：UPDATE ... WHERE stock > 0
+      返回影响行数 0 表示库存不足。
+      这一条 SQL 就解决了并发超卖问题 —— 比"先 SELECT 再判断"可靠得多。
+    -->
+    <update id="decreaseStock">
+        UPDATE book SET stock = stock - 1 WHERE id = #{id} AND stock &gt; 0
+    </update>
+
+    <update id="increaseStock">
+        UPDATE book SET stock = stock + 1 WHERE id = #{id} AND stock &lt; total
+    </update>
+
+</mapper>

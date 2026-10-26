@@ -1,0 +1,136 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "一个盒子写了 `width: 200px; padding: 20px; border: 5px solid; box-sizing: border-box;`，它实际占据的水平宽度是多少？",
+      "options": [
+        "200px",
+        "250px",
+        "240px",
+        "230px"
+      ],
+      "answer": [0],
+      "explain": "`box-sizing: border-box` 表示 width 指的是『border box』的宽度，即内容 + padding + border 的总和都被塞进 200px 里，实际内容区只剩 200 - 20×2 - 5×2 = 150px。默认值是 `content-box`，此时 width 只算内容区，盒子总宽 = 200 + 40 + 10 = 250px。这就是同样写 width:200 在不同项目里表现不一致的根源。工程上常见的做法是全局 `*, *::before, *::after { box-sizing: border-box; }`，让 width 与设计稿标注的『占位宽度』一致，也让百分比宽度加上 padding 后不会溢出父容器。注意 border-box 下 padding/border 之和若超过 width，内容区会被压到 0 且盒子实际会撑到 padding+border 的最小宽度。",
+      "tag": "盒模型"
+    },
+    {
+      "type": "single",
+      "q": "下面三条规则同时命中同一个 `<p class=\"tip\" id=\"main\">`，最终生效的文字颜色是？\n```css\np { color: red; }\n.tip { color: green; }\n#main { color: blue; }\n```",
+      "options": [
+        "blue",
+        "green",
+        "red",
+        "取决于三条规则在文件中的书写顺序"
+      ],
+      "answer": [0],
+      "explain": "优先级按权重比较：id 选择器 100，class/属性/伪类 10，元素/伪元素 1，通配符 0。`#main` 权重最高（100），无论三条规则顺序如何都胜出，所以是 blue。顺序只在『权重完全相等』时才决定胜负（后写的覆盖先写的）。另外内联 style 的权重高于任何选择器（通常记为 1000），而 `!important` 又高于内联（除了动画与某些 UA 规则）。`p.tip` 权重是 1+10=11、`.tip.tip` 是 20，呈现为进位式而非十进制『1000/100/10/1』连写——但两者比较结果一致，只是不要误以为 11 个 class 能超过 1 个 id。",
+      "tag": "选择器优先级"
+    },
+    {
+      "type": "judge",
+      "q": "`flex: 1` 等价于 `flex-grow: 1; flex-shrink: 1; flex-basis: 0%`。",
+      "answer": true,
+      "explain": "flex 是复合属性的简写，规范给出的展开为 `flex-grow: 1`、`flex-shrink: 1`、`flex-basis: 0%`。关键在于 basis 是 `0%` 而不是 `auto`：basis 为 0 时，剩余空间按 grow 比例分配，各项目最终宽度纯粹按比例划分，所以 `flex:1` 能让多个子项严格等宽而不受内容多少影响。若写成 `flex: 1 1 auto`，basis 取内容宽度，剩余空间是在各自内容宽度之上再加，长文本的子项会更宽。另一个易混点是只写 `flex: 1` 与 `flex-grow: 1` 并不等价：后者 shrink 仍为默认 1、basis 仍为 auto。`flex: none` 等于 `0 0 auto`（不伸不缩），`flex: auto` 等于 `1 1 auto`。",
+      "tag": "Flex"
+    },
+    {
+      "type": "multi",
+      "q": "下列哪些情况会创建 BFC（块级格式化上下文）？",
+      "options": [
+        "根元素 `<html>`",
+        "`float: left` 的元素",
+        "`display: flow-root` 的元素",
+        "`position: relative` 且 `z-index: auto` 的元素"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "常见触发条件：根元素；浮动元素（float 非 none）；绝对/固定定位（position: absolute 或 fixed，注意 relative 不算）；display 为 inline-block、table-cell、table-caption、flex/grid 项目、flow-root；overflow 不为 visible 且不为 clip 的块盒；contain 为 layout/paint/content/strict；多列容器等。BFC 的实用价值：内部浮动被包含（父元素高度不再塌陷）、不与外部浮动重叠、相邻 BFC 的垂直外边距不合并。`display: flow-root` 是专门为『创建 BFC 而不带来其他副作用』设计的新值，比 `overflow: hidden` 更好——后者会裁剪溢出内容、影响 sticky 与滚动容器、在移动端还可能被当作滚动区域。注意 `position: relative` 不产生 BFC，它只改变定位基准和层叠参与方式。",
+      "tag": "BFC"
+    },
+    {
+      "type": "single",
+      "q": "相邻的兄弟元素 A（`margin-bottom: 30px`）与 B（`margin-top: 20px`）垂直相邻，两者间距是多少？",
+      "options": [
+        "30px",
+        "50px",
+        "20px",
+        "取决于父元素是否设置了 overflow"
+      ],
+      "answer": [0],
+      "explain": "普通文档流中相邻块级盒的垂直外边距会合并（margin collapsing），取绝对值较大者，而不是相加——所以是 max(30, 20) = 30px。这正是『明明两边都写了 margin，位置却不对』的常见原因。合并只发生在垂直方向（水平方向从不合并），且需要满足：同属一个 BFC、之间没有行内内容/清除浮动/边框或内边距隔开、都是普通流的块级盒。若给父元素创建 BFC（如 `overflow: hidden`、`display: flow-root`），或给父子之间加 padding/border，父子间的 margin 合并就会消失。flex/grid 项目的子项不参与外边距合并，这也是用 flex 布局常常『margin 正常了』的原因。",
+      "tag": "外边距合并"
+    },
+    {
+      "type": "fill",
+      "q": "要让元素在页面滚动到其顶部时吸附在容器顶端、并且不脱离文档流（仍占据原空间），应使用 `position: ____`。",
+      "answer": "sticky",
+      "explain": "sticky 是『相对定位 + 滚动吸附』的混合体：当元素在滚动容器内的位置越过设定的阈值（如 `top: 0`）时，它表现为固定；回退时又回到原位置。它仍占据文档流中的原有空间，也因此与 `fixed` 有本质区别——fixed 相对视口定位、脱离文档流。失效的两个高频原因：(1) 没有滚动祖先或滚动发生在别的元素上（页面滚动体是 html/body，若外层容器写了 `overflow: hidden` 或 `overflow: auto` 但自身不滚动，sticky 就失去参照）；(2) 任一祖先设置了 `overflow: hidden/auto/scroll` 且高度受限，会把吸附范围截断在该容器内。此外 sticky 元素的祖先链上若有 `transform`、`filter`、`will-change`，会创建包含块并影响 fixed，而 sticky 主要受滚动容器约束。",
+      "tag": "定位"
+    },
+    {
+      "type": "single",
+      "q": "下面这段 CSS 中，`.box` 的最终宽度表现是？\n```css\n.parent { display: flex; width: 300px; }\n.box { flex: 1; min-width: 200px; }\n```\n（假设父容器内有两个 `.box`）",
+      "options": [
+        "两个盒子各占 200px，总宽 400px 溢出父容器",
+        "两个盒子各占 150px，完全等分",
+        "两个盒子各占 150px，min-width 被忽略",
+        "各占 100px，因为 flex 会平均分配父容器宽度"
+      ],
+      "answer": [0],
+      "explain": "flex 布局的『理想尺寸』计算里，flex-basis 与 grow 决定基础分配（300 / 2 = 150px），但 `min-width: 200px` 是硬约束：规范要求 flex item 的尺寸不得小于其最小尺寸（min-width 参与 clamping，被称为 min/max violation 处理）。因此每个盒子至少 200px，总宽 400px 超出 300px 的容器，容器不滚动时就会溢出。这解释了 `flex: 1` 配长文本或固定最小宽度的场景下『怎么都压不下去』的问题——要压缩必须让 `min-width` 生效被取消，比如显式写 `min-width: 0`。这一点在 flex 子项内含 `white-space: nowrap` 文本或 `text-overflow: ellipsis` 时尤其关键：flex item 的默认 `min-width: auto` 会取内容最小尺寸，导致省略号永不出现，必须补 `min-width: 0`。",
+      "tag": "Flex"
+    },
+    {
+      "type": "judge",
+      "q": "`z-index` 只有在元素 `position` 不为 `static`（或是 flex/grid 子项）时才生效。",
+      "answer": true,
+      "explain": "z-index 只对『已定位元素』或 flex/grid 的直接子项（它们即使 position: static 也参与 z-index 排序）生效，普通 static 元素写了也没用。更关键的是层叠上下文（stacking context）：z-index 是在同一个层叠上下文内部比较的，父级创建了上下文（如 position 非 static 且 z-index 非 auto、opacity < 1、transform 非 none、filter、isolation: isolate、will-change 指定相关属性等）后，子元素无论 z-index 多大都只在该上下文内部排序，无法越过父级与兄弟上下文比较。这就是『给弹窗设了 z-index: 9999 还是被挡住』的根因：它被一个 z-index 更低的祖先层叠上下文困住了。排查方式是沿着祖先链找第一个创建层叠上下文的元素。",
+      "tag": "层叠上下文"
+    },
+    {
+      "type": "single",
+      "q": "关于 `grid-template-columns: 1fr 2fr` 与 `grid-template-columns: 1fr 1fr`，下列说法正确的是？",
+      "options": [
+        "`fr` 分配的是『扣除固定尺寸轨道后的剩余空间』，所以前者两列宽度比为 1:2",
+        "`fr` 是相对视口的百分比单位，总和必须为 100",
+        "`fr` 与 `flex` 一样会被内容撑开而失去比例",
+        "`fr` 只能用于行，不能用于列"
+      ],
+      "answer": [0],
+      "explain": "`fr`（fraction）是网格专用单位，语义是『剩余空间的一份』：先扣除所有固定轨道（如 `100px`、`auto` 内容尺寸）后，剩余空间按 fr 系数分配，所以 1fr 2fr 得到 1:2。但它有一个易被忽略的细节：fr 轨道的『最小值』默认是 auto（`minmax(auto, 1fr)` 的隐含行为），当轨道内容最小尺寸超过按比例算出的宽度时，网格会先满足内容再分配剩余，从而破坏严格比例；写成 `minmax(0, 1fr)` 可强制允许压缩，这也是代码里出现 `minmax(0,1fr)` 的原因。fr 不是百分比，不需要总和为 100，写 `1fr 1fr 1fr` 即三等分；fr 行列都可用。`auto` 与 `1fr` 的区别也常被考：auto 先看内容、再把剩余补给；1fr 先按剩余分配。",
+      "tag": "Grid"
+    },
+    {
+      "type": "fill",
+      "q": "媒体查询中，表示『视口宽度大于等于 768px』的写法是 `@media (min-width: ____)`（只填数值与单位）。",
+      "answer": "768px",
+      "explain": "`min-width` 是『至少这么宽才命中』，配合移动优先（mobile first）写法逐级覆盖：先写基础样式（小屏），再用 `@media (min-width: 768px)`、`(min-width: 1024px)` 往上加规则。这种写法 CSS 体积更小、覆盖关系单向清晰。`max-width` 是『不超过这么宽才命中』，用于桌面优先的降级，两者混用时容易出现区间空洞或重叠（例如 max-width: 767px 与 min-width: 768px 恰好衔接，但若写成 768 与 768 就会在 768px 处双重命中）。断点应由内容决定（内容开始拥挤时就断），而不是照抄设备型号；`dppx`、`orientation`、`prefers-color-scheme`、`prefers-reduced-motion` 也常与宽度条件并列使用。",
+      "tag": "响应式"
+    },
+    {
+      "type": "multi",
+      "q": "关于伪类 `:hover`、`:nth-child(2)`、`::before`，下列说法正确的有？",
+      "options": [
+        "`::before` 是伪元素，必须配合 `content` 属性才会生成盒子",
+        "`:nth-child(2)` 表示『作为父元素第 2 个子元素且匹配选择器』，与元素类型无关地按位置计数",
+        "伪元素自身默认是行内元素，可通过 `display: block` 或 `position: absolute` 改变",
+        "`:hover` 在触摸设备上一定不会触发"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "伪元素（`::before`/`::after`）需要 `content`（哪怕 `content: \"\"`）才会生成，且默认 `display: inline`，宽高不生效，通常要设 `display: block/inline-block` 或绝对定位；它们不在 DOM 里，无法用 JS 直接选中，`getComputedStyle(el, '::before')` 只能读不能改。`:nth-child(n)` 是按『在兄弟中的位置』计数：`.item:nth-child(2)` 指『既是 .item 又是第 2 个子元素』，若第 2 个是别的标签则不命中；按类型计数要用 `:nth-of-type`。触摸设备上 `:hover` 通常会在点击时短暂附加（移动浏览器为了兼容而模拟），只是不会像鼠标那样悬停保持，且可能造成『需要点两次』的问题——所以交互不能只依赖 hover 表达，要考虑 `:focus-visible` 与 `@media (hover: hover)`。另外 CSS3 规定伪元素用双冒号、伪类用单冒号，`:before` 单冒号是老写法，仍被兼容。",
+      "tag": "伪类与伪元素"
+    },
+    {
+      "type": "single",
+      "q": "下面布局中，两个子项的最终宽度最接近哪一组？\n```css\n.parent { width: 400px; display: flex; }\n.child { flex: 0 2 200px; }\n.sibling { flex: 0 1 300px; }\n```",
+      "options": [
+        "child ≈ 142.9px，sibling ≈ 257.1px",
+        "child ≈ 133.3px，sibling ≈ 266.7px",
+        "child ≈ 150px，sibling ≈ 250px",
+        "child = 200px，sibling = 200px"
+      ],
+      "answer": [0],
+      "explain": "弹性收缩不是按 shrink 系数直接成比例，而是按『收缩因子 × flex-basis』加权分配溢出量。基础尺寸 200 + 300 = 500，容器 400，溢出 100。权重：child 2×200 = 400，sibling 1×300 = 300，合计 700。child 承担 100 × 400/700 ≈ 57.14px，最终 142.86px；sibling 承担 100 × 300/700 ≈ 42.86px，最终 257.14px。所以 A 正确。B 是把 shrink 系数直接当比例（2:1）分配得到的错误结果；C 是平均分配的错觉；D 忽略了总宽超出容器这一事实。另一个隐藏约束是 `min-width: auto`：若子项内容的最小尺寸大于收缩后的宽度，元素会被夹住不再继续缩，实际值会偏离计算值，做省略号时需显式 `min-width: 0`。",
+      "tag": "Flex"
+    }
+  ]
+}

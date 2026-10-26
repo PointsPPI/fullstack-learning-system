@@ -1,0 +1,52 @@
+{
+  "id": "your-pack-id",
+  "title": "你的学习包名称",
+  "version": "1.0.0",
+  "color": "#7c3aed",
+  "description": "一句话说明这个包讲什么。会显示在包列表里。",
+  "stages": [
+    { "title": "阶段一 · 入门", "topics": ["topic-1", "topic-2"] },
+    { "title": "阶段二 · 进阶", "topics": ["topic-3"] }
+  ],
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "第一个主题",
+      "summary": "一句话摘要，显示在卡片和搜索结果里。",
+      "tags": ["基础", "概念"],
+      "estMin": 30,
+      "lesson": "lessons/01-topic-1.md",
+      "quiz": "quiz/01-topic-1.json",
+      "nodes": [
+        { "id": "n1", "title": "第一个学习点", "key": true },
+        { "id": "n2", "title": "第二个学习点" },
+        { "id": "n3", "title": "第三个学习点" }
+      ]
+    },
+    {
+      "id": "topic-2",
+      "title": "第二个主题",
+      "summary": "依赖第一个主题。",
+      "tags": ["进阶"],
+      "estMin": 40,
+      "lesson": "lessons/02-topic-2.md",
+      "prereq": ["topic-1"],
+      "nodes": [
+        { "id": "a", "title": "要点 A", "key": true },
+        { "id": "b", "title": "要点 B" }
+      ]
+    },
+    {
+      "id": "topic-3",
+      "title": "第三个主题",
+      "summary": "跨包前置：写 \"其他包id/主题id\"。",
+      "tags": ["实战"],
+      "estMin": 50,
+      "lesson": "lessons/03-topic-3.md",
+      "prereq": ["topic-2", "web-frontend/javascript"],
+      "nodes": [
+        { "id": "x", "title": "要点 X", "key": true }
+      ]
+    }
+  ]
+}

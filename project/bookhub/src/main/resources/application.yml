@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: bookhub
+  datasource:
+    url: jdbc:mysql://127.0.0.1:${DB_PORT:3307}/bookhub?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: bh
+    password: bh_pwd_2026
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 20000
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  web:
+    resources:
+      # 把前端静态页挂进来，直接访问 http://localhost:8080/ 就是学习站
+      static-locations: classpath:/static/
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never          # 不把异常 message 暴露给前端
+    include-stacktrace: never
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/css,text/javascript
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.bookhub.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+
+pagehelper:
+  helper-dialect: mysql
+  reasonable: false
+  support-methods-arguments: true
+  params: count=countSql
+
+logging:
+  level:
+    root: info
+    com.bookhub: debug
+    com.bookhub.mapper: debug
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

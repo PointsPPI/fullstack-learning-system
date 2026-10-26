@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bookhub.mapper.BorrowMapper">
+
+    <select id="findById" resultType="com.bookhub.entity.Borrow">
+        SELECT id, book_id, reader_id, borrow_date, due_date, return_date, status
+        FROM borrow WHERE id = #{id}
+    </select>
+
+    <!--
+      联表查询：一次 SQL 拿到借阅记录 + 书名 + 读者名
+      这避免了 N+1 问题（若在 Service 里逐条查 book 和 reader，就是 1+N+N 次查询）
+      返回 Map 而非实体，因为这是"视图数据"，不是某个表的结构 —— 交给 Service 组装 VO
+    -->
+    <select id="searchWithBookAndReader" resultType="java.util.LinkedHashMap">
+        SELECT
+            br.id            AS id,
+            br.book_id       AS bookId,
+            bk.title         AS bookTitle,
+            bk.author        AS bookAuthor,
+            br.reader_id     AS readerId,
+            rd.name          AS readerName,
+            rd.card_no       AS readerCardNo,
+            br.borrow_date   AS borrowDate,
+            br.due_date      AS dueDate,
+            br.return_date   AS returnDate,
+            br.status        AS status
+        FROM borrow br
+        JOIN book   bk ON br.book_id   = bk.id
+        JOIN reader rd ON br.reader_id = rd.id
+        <where>
+            <if test="status != null">AND br.status = #{status}</if>
+            <if test="readerId != null">AND br.reader_id = #{readerId}</if>
+        </where>
+        ORDER BY br.id DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO borrow (book_id, reader_id, borrow_date, due_date, return_date, status)
+        VALUES (#{bookId}, #{readerId}, #{borrowDate}, #{dueDate}, #{returnDate}, #{status})
+    </insert>
+
+    <!-- 只有未归还（return_date IS NULL）才允许标记归还 —— 幂等 + 防并发重复归还 -->
+    <update id="markReturned">
+        UPDATE borrow
+        SET return_date = #{returnDate}, status = 1
+        WHERE id = #{id} AND return_date IS NULL
+    </update>
+
+    <select id="countActiveByReader" resultType="int">
+        SELECT COUNT(*) FROM borrow WHERE reader_id = #{readerId} AND return_date IS NULL
+    </select>
+
+</mapper>

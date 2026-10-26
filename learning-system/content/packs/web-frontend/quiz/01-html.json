@@ -1,0 +1,130 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "q": "HTML 文档缺少 `<!DOCTYPE html>` 声明时，浏览器通常会怎样处理？",
+      "options": [
+        "进入怪异模式（quirks mode），盒模型等渲染规则回退到旧标准",
+        "直接拒绝渲染，页面显示空白",
+        "只影响 IE，现代浏览器完全忽略 DOCTYPE",
+        "DOCTYPE 必须写在 `<head>` 内部才生效"
+      ],
+      "answer": [0],
+      "explain": "浏览器在解析前先看文档开头的 DOCTYPE。`<!DOCTYPE html>` 表示遵循 HTML5 标准，页面进入 standards mode（标准模式）。如果完全省略 DOCTYPE，浏览器会切到 quirks mode（怪异模式）：最典型的表现是盒模型按老式 IE 规则计算（width 直接包含 padding 和 border）、行内元素高度计算异常、百分比高度基准不同、表格字体继承行为改变。DOCTYPE 必须是文档最前面的内容（除 BOM、注释、空白的容差），写进 `<head>` 里无效，浏览器很可能早已按无 DOCTYPE 进入怪异模式。它不是标签、不渲染任何内容，页面也绝不会因此『空白』，区别只在渲染规则。",
+      "tag": "DOCTYPE 与渲染模式"
+    },
+    {
+      "type": "multi",
+      "q": "下列标签中，属于 HTML5 语义化标签的有哪些？",
+      "options": [
+        "`<article>`",
+        "`<div>`",
+        "`<nav>`",
+        "`<span>`"
+      ],
+      "answer": [0, 2],
+      "explain": "`article`、`nav`、`section`、`aside`、`header`、`footer`、`main`、`figure` 等是 HTML5 引入的语义化标签：它们表达内容的结构角色，屏幕阅读器据此生成 landmark（地标）导航，跳读页面区域；对 SEO、可维护性也有帮助。`div` 和 `span` 是无语义的通用容器，前者块级、后者行内，纯粹作为布局和样式钩子。要注意语义化标签默认样式与 div 几乎一样（UA 样式里都是 display:block，无内外边距），『有语义』不等于『有样式』，视觉仍要自己写 CSS。",
+      "tag": "语义化标签"
+    },
+    {
+      "type": "judge",
+      "q": "点击 `<label for=\"x\">` 会聚焦到 `id=\"x\"` 的表单控件；`for` 匹配的是控件的 `id`，不是 `name`。",
+      "answer": true,
+      "explain": "HTML 规范规定 label 的 for 属性值必须与目标控件的 id 相同（同一文档内且唯一），浏览器会把点击事件转发给该控件，从而聚焦输入框、切换 checkbox/radio，移动端还会唤起对应键盘。写成 name 不会生效。另一种等价写法是把控件包在 label 内部（隐式关联），此时无需 for。这也是提升可访问性的最简单手段：读屏软件在聚焦控件时会朗读关联的 label 文本，而只有 placeholder 的输入框在输入后提示就消失，且占位文本常被误当作值提交。",
+      "tag": "label 关联"
+    },
+    {
+      "type": "single",
+      "q": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">` 的作用是什么？",
+      "options": [
+        "让布局视口宽度等于设备的理想视口宽度，并设定初始缩放比例为 1",
+        "把页面的最大宽度限制为屏幕宽度",
+        "只对桌面浏览器生效，移动端会忽略",
+        "声明页面使用 UTF-8 字符编码"
+      ],
+      "answer": [0],
+      "explain": "移动浏览器默认会用一个约 980px 宽的虚拟布局视口渲染页面，再整体缩小显示，于是字号奇小、`@media` 查询也按 980px 命中。`width=device-width` 把布局视口（layout viewport）设成设备独立像素宽度，`initial-scale=1` 表示初始不缩放，这样 CSS 像素与设备独立像素一一对应，响应式断点才有意义。字符编码要写 `<meta charset=\"utf-8\">`，与 viewport 无关。另外 `user-scalable=no`、`maximum-scale=1` 会禁止用户双指放大，损害可访问性，iOS 10 起会直接忽略这些限制。",
+      "tag": "meta viewport"
+    },
+    {
+      "type": "fill",
+      "q": "让 HTML5 页面进入标准模式所需的最简文档类型声明是 ____（完整写出一行）。",
+      "answer": "<!DOCTYPE html>",
+      "explain": "标准模式最简声明即 `<!DOCTYPE html>`，不区分大小写，HTML5 只认这一种写法（任何前置内容都会让它失效并落入怪异模式）。旧式的 HTML 4.01 Strict DTD 也能触发标准模式，但会附带兼容包袱；HTML 4.01 Transitional 配错 URL 则会触发 almost standards mode（近似标准模式），此时图片等替换元素的行盒处理仍有差异。实际项目里由构建工具或编辑器模板统一写入，手写页面最容易漏掉这一行。",
+      "tag": "文档骨架"
+    },
+    {
+      "type": "single",
+      "q": "关于 `<script>` 的 `defer` 与 `async`，下列说法正确的是？",
+      "options": [
+        "`defer` 脚本并行下载，在 HTML 解析完成后、`DOMContentLoaded` 之前按文档顺序执行",
+        "`async` 脚本并行下载，下载完立刻执行，多个 async 脚本严格按书写顺序执行",
+        "两者都会阻塞 HTML 解析",
+        "`defer` 只对外部脚本有效，而 `async` 对内联脚本同样有效"
+      ],
+      "answer": [0],
+      "explain": "三种模式要分清：普通 `<script>` 是同步阻塞——遇到就下载并执行，执行完才继续解析，因此放在 `<head>` 会拖慢首屏。`defer` 是下载不阻塞、执行延后且保序：等文档解析完成后，在 `DOMContentLoaded` 触发之前按书写顺序执行，适合依赖 DOM 或彼此依赖的业务脚本。`async` 是下载不阻塞、执行抢占：谁先下载完谁先执行，顺序完全由网络决定，适合互不依赖的独立脚本（统计、广告），它可能在 DOM 还没解析完时运行。两者都只对外部脚本（带 `src`）有意义，写在内联脚本上会被忽略；`type=\"module\"` 的脚本默认具备 defer 语义。",
+      "tag": "script 加载与阻塞"
+    },
+    {
+      "type": "multi",
+      "q": "下列做法中，符合可访问性（a11y）要求的有哪些？",
+      "options": [
+        "`<img>` 提供有意义的 `alt`；纯装饰图片写空值 `alt=\"\"`",
+        "图标按钮使用 `<button>` 元素并加 `aria-label` 描述用途，而不是用无文字的 `<div>`",
+        "表单控件通过 `for`/包裹方式关联 label，而不是只依赖 placeholder",
+        "为了 SEO，在页面里塞一个 `display:none` 的关键词列表"
+      ],
+      "answer": [0, 1, 2],
+      "explain": "alt 是图片的文本替代：有信息量时写内容描述，纯装饰写 `alt=\"\"` 让读屏跳过（完全不写 alt 时读屏常会念出文件名甚至整条 URL）。用 div 做按钮会丢失键盘可达性（不可 Tab 聚焦、不响应 Enter/Space）、角色语义和焦点样式，必须补 `role=\"button\" tabindex=\"0\"` 并手写键盘事件——直接用 `<button>` 成本最低。label 关联让读屏在聚焦时朗读字段名，placeholder 只是视觉占位、输入即消失，不能替代标签。隐藏关键词堆砌属于作弊手段，现代搜索引擎会识别并降权，同时隐藏文本也会被读屏软件读到（display:none 反而不读，但语义上仍是垃圾内容）。",
+      "tag": "可访问性 ARIA"
+    },
+    {
+      "type": "judge",
+      "q": "`<form>` 内部的 `<button>提交</button>` 未写 `type` 时，点击它会提交表单。",
+      "answer": true,
+      "explain": "HTML 规范里 button 的 type 默认值是 `submit`（不是 button）。所以 form 内任何未显式声明 type 的按钮，点击都会触发表单提交，于是出现『点一下按钮页面就刷新、地址栏多了问号参数』的经典 bug——尤其常见于 form 里放『取消』『获取验证码』这类按钮时忘记写 `type=\"button\"`。另外表单只有一个文本输入框时，在输入框内按回车会触发隐式提交（implicit submission）；有多个提交按钮时，隐式提交使用的是第一个 submit 按钮。",
+      "tag": "表单提交"
+    },
+    {
+      "type": "single",
+      "q": "`<section>` 与 `<div>` 的核心区别是什么？",
+      "options": [
+        "`section` 表示文档中一个带主题的分节，默认样式与 `div` 几乎相同，价值在语义与可访问性",
+        "`section` 默认自带边框和内边距",
+        "`section` 内的内容不会被搜索引擎索引",
+        "`div` 已被废弃，应该全部替换为 `section`"
+      ],
+      "answer": [0],
+      "explain": "`section` 语义上是『一个主题分节』，规范建议它应当有标题（h1-h6）来标识主题；它参与文档大纲（outline）并被读屏软件识别为区域。`div` 是无语义容器，用于布局分组。两者 UA 样式一致：`display:block`、无内外边距、无边框，所以视觉上不会有任何差异——如果看到 section 有间距，那是项目 CSS 加的。反过来说，把每个 div 都改成 section 是常见的过度语义化：满屏无标题的 section 会让地标导航失去区分度，反而不如老老实实用 div。搜索引擎不会因为标签是 section 就给权重，内容质量才是主因。",
+      "tag": "语义化标签"
+    },
+    {
+      "type": "fill",
+      "q": "要让浏览器在提交时对邮箱格式做原生校验、并在移动端唤起带 `@` 的键盘，`<input>` 的 `type` 属性应设为 ____。",
+      "answer": "email",
+      "explain": "`type=\"email\"` 会让浏览器按邮箱格式做约束校验（提交时拦截并提示），移动端则弹出带 @ 和 . 的键盘布局；配合 `required` 做非空校验、`multiple` 允许逗号分隔的多个地址。`type=\"text\"` 完全不校验。注意原生校验只是 UX 优化：用户可以禁用 HTML 校验、也可以直接构造请求绕过，服务端必须独立校验。类似地 `type=\"number\"` 会限制输入并改变移动端键盘，但 `value` 取到的是字符串；`type=\"tel\"` 不做格式校验，只影响键盘。",
+      "tag": "表单控件"
+    },
+    {
+      "type": "single",
+      "q": "下面这段 HTML 经浏览器解析后，DOM 结构最接近哪一种？\n```html\n<p>a<div>b</div>c</p>\n```",
+      "options": [
+        "`<p>a</p><div>b</div>c<p></p>`：div 的开始标签强制关闭 p，末尾的结束标签又补出一个空 p",
+        "`<p>a<div>b</div>c</p>`：p 内嵌套 div，结构保持原样",
+        "整段被丢弃，因为 p 不允许包含 div，解析报错即停止",
+        "`<div><p>a</p>b</div>c`：div 包裹整个 p"
+      ],
+      "answer": [0],
+      "explain": "HTML 解析器是纠错型解析器，不是 XML 解析器，遇到非法嵌套会按插入模式（insertion mode）规则自动修补。p 元素的闭合规则是：在 in body 模式下遇到块级开始标签（div、p、ul、h1、table 等）时，如果栈中存在处于 button scope 的 p，就先隐式关闭它。所以读到 `<div>` 时会先把 `<p>a</p>` 闭合，`c` 于是落在 div 之后。而末尾的 `</p>` 在开放元素栈里找不到对应 p，属于解析错误，规范要求插入一个空的 `<p></p>` 再立即闭合它，所以文档末尾多出一个空 p 元素。这也解释了实践中『在 p 里写 div 布局会莫名错位』：部分内容被挤出了段落，flex/grid 的父子关系也随之改变。",
+      "tag": "HTML 解析与纠错"
+    },
+    {
+      "type": "judge",
+      "q": "`<img src=\"a.png\" alt=\"\">` 中的空 `alt` 表示这是一张装饰性图片，屏幕阅读器应当跳过它。",
+      "answer": true,
+      "explain": "alt 的三种状态要区分：缺省（没有 alt 属性）时读屏软件常会朗读文件名或整条 URL，是真正的可访问性缺陷；`alt=\"文本\"` 提供等价文本；`alt=\"\"`（空字符串）明确声明『此图无语义、纯装饰』，读屏会跳过。所以『必须有 alt 属性』和『alt 可以为空』并不矛盾——空值是主动声明而非遗漏。装饰性图标、纯样式背景、与旁边文字重复表达的图片都应写空 alt，否则会让读屏用户听到冗余噪音。",
+      "tag": "可访问性 ARIA"
+    }
+  ]
+}
