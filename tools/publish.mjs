@@ -69,22 +69,44 @@ function git(args, opts = {}) {
   return { ok: r.status === 0, out: (r.stdout || '') + (r.stderr || ''), status: r.status };
 }
 
-/* ---------- GitHub API ---------- */
+/* ---------- GitHub API ----------
+ * 用 node:https 而不是全局 fetch：
+ *   Windows 上 fetch(undici) 的 keep-alive 连接在进程退出时会触发
+ *   "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" 噪音。
+ *   用 https.request + agent:false 每次独立连接，彻底避免。
+ */
 async function api(pathname, { method = 'GET', body } = {}) {
-  const res = await fetch('https://api.github.com' + pathname, {
-    method,
-    headers: {
-      Authorization: `Bearer ${TOKEN}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'learning-system-publish',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+  const https = await import('node:https');
+  const payload = body ? JSON.stringify(body) : null;
+
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      host: 'api.github.com',
+      path: pathname,
+      method,
+      agent: false,
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'learning-system-publish',
+        Connection: 'close',
+        ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}),
+      },
+    }, (res) => {
+      let buf = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { buf += c; });
+      res.on('end', () => {
+        let json = null;
+        try { json = buf ? JSON.parse(buf) : null; } catch { /* 204 无 body */ }
+        resolve({ status: res.statusCode, json });
+      });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
   });
-  let json = null;
-  try { json = await res.json(); } catch { /* 204 无 body */ }
-  return { status: res.status, json };
 }
 
 /* ============================================================
